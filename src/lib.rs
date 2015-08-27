@@ -1,5 +1,5 @@
-#![feature(static_mutex)]
-#![feature(cstr_to_str)]
+#![cfg_attr(unix, feature(cstr_to_str, static_mutex))]
+#![cfg_attr(windows, feature(const_fn, result_expect))]
 
 use std::ffi::{CStr, OsStr};
 use std::marker;
@@ -47,9 +47,19 @@ impl Library {
         imp::Library::new(filename).map(Library)
     }
 
-    /// Load the currently running executable as a library.
+    /// Load all already loaded libraries.
     ///
-    /// This allows retrieving any loaded (possibly dynamically) symbols.
+    /// This allows retrieving symbols from already **dynamically** loaded libraries.
+    /// “Dynamically” here is a very important part: you cannot load symbols linked into the
+    /// executable statically. For example following code will not work:
+    ///
+    /// ```ignore
+    /// let lib = Library::this();
+    /// let main: Symbol<extern fn() -> usize> = unsafe {
+    ///     // function `main` is usually linked-in statically
+    ///     lib.get(&::std::ffi::CString::new("main").unwrap()).unwrap()
+    /// };
+    /// ```
     pub fn this() -> Library {
         Library(imp::Library::this())
     }
@@ -79,7 +89,7 @@ impl Library {
     pub unsafe fn get<'lib, T>(&'lib self, symbol: &CStr) -> Result<Symbol<'lib, T>> {
         self.0.get(symbol).map(|from| {
             Symbol {
-                pointer: from,
+                pointer: from as *mut _,
                 pd: marker::PhantomData
             }
         })
@@ -127,7 +137,7 @@ pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
 
 #[cfg(not(target_os="windows"))]
 #[test]
-fn test_libm() {
+fn libm() {
     let lib = Library::new(from_library_name("m")).unwrap();
     let sin: Symbol<extern fn(f64) -> f64> = unsafe {
         lib.get(&::std::ffi::CString::new("sin").unwrap()).unwrap()
@@ -139,12 +149,13 @@ fn test_libm() {
     assert!(unsafe { **errno } != 0);
 }
 
+#[cfg(not(target_os="windows"))]
 #[test]
-fn test_this_sin() {
-    // libm is loaded by all rust executables that use libstd.
+fn this_strlen() {
+    // I couldn’t find anything that works on windows here hehe
+    const SYMBOL: &'static str = "strlen";
     let lib = Library::this();
-    let sin: Symbol<extern fn(f64) -> f64> = unsafe {
-        lib.get(&::std::ffi::CString::new("sin").unwrap()).unwrap()
+    let _symbol: Symbol<extern fn() -> usize> = unsafe {
+        lib.get(&::std::ffi::CString::new(SYMBOL).unwrap()).unwrap()
     };
-    assert!(sin(::std::f64::consts::PI) < 1E-5);
 }

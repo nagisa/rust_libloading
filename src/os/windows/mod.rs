@@ -5,18 +5,20 @@
 extern crate winapi;
 extern crate kernel32;
 
+use std::ffi::{CStr, OsStr, OsString};
+use std::path::PathBuf;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use winapi::{HMODULE, FARPROC, DWORD, ERROR_CALL_NOT_IMPLEMENTED};
+use std::os::windows::ffi::OsStrExt;
 
 pub struct Library {
-    handle: HMODULE
+    handle: winapi::HMODULE
 }
 
-unsafe fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
+fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
 where F: FnOnce() -> Option<T> {
-    closure.map(Ok).unwrap_or_else(|| {
-        let error = kernel32::GetLastError();
+    closure().map(Ok).unwrap_or_else(|| {
+        let error = unsafe { kernel32::GetLastError() };
         Err(if error == 0 {
             None
         } else {
@@ -29,7 +31,7 @@ where F: FnOnce() -> Option<T> {
 impl Library {
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
-        let wide_filename: Vec<u16> = filename.as_ref().encode_wide().collect();
+        let mut wide_filename: Vec<u16> = filename.as_ref().encode_wide().collect();
         wide_filename.push(0);
         wide_filename.shrink_to_fit();
         let _guard = ErrorModeGuard::new();
@@ -60,7 +62,7 @@ impl Library {
             let mut ret = Library {
                 handle: ptr::null_mut()
             };
-            if unsafe { kernel32::GetModuleHandleExW(0, ptr::null(), &mut (ret.0)) == 0 } {
+            if unsafe { kernel32::GetModuleHandleExW(0, ptr::null(), &mut ret.handle) == 0 } {
                 None
             } else {
                 Some(ret)
@@ -68,9 +70,9 @@ impl Library {
         }).expect("GetModuleHandleExW failed, but it shouldn’t")
     }
 
-    pub unsafe fn get(&self, symbol: &CStr) -> ::Result<FARPROC> {
+    pub unsafe fn get(&self, symbol: &CStr) -> ::Result<winapi::FARPROC> {
         with_get_last_error(|| {
-            let symbol = unsafe { GetProcAddress(self.0, symbol.as_ptr()) };
+            let symbol = kernel32::GetProcAddress(self.handle, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {
@@ -84,7 +86,7 @@ impl Library {
 
 impl Drop for Library {
     fn drop(&mut self) {
-        with_error(|| {
+        with_get_last_error(|| {
             if unsafe { kernel32::FreeLibrary(self.handle) == 0 } {
                 None
             } else {
@@ -97,7 +99,7 @@ impl Drop for Library {
 
 static USE_THREADERRORMODE: AtomicBool = AtomicBool::new(true);
 
-struct ErrorModeGuard(DWORD);
+struct ErrorModeGuard(winapi::DWORD);
 
 impl ErrorModeGuard {
     fn new() -> ErrorModeGuard {
@@ -105,13 +107,13 @@ impl ErrorModeGuard {
 
         if USE_THREADERRORMODE.load(Ordering::Acquire) {
             if unsafe { kernel32::SetThreadErrorMode(1, &mut ret.0) == 0
-                        && kernel32::GetLastError() == ERROR_CALL_NOT_IMPLEMENTED } {
-                USE_THREADERRORMODE.store(false, Ordering::Store)
+                        && kernel32::GetLastError() == winapi::ERROR_CALL_NOT_IMPLEMENTED } {
+                USE_THREADERRORMODE.store(false, Ordering::Release);
             } else {
                 return ret;
             }
         }
-        ret.0 = unsafe { SetErrorMode(1) };
+        ret.0 = unsafe { kernel32::SetErrorMode(1) };
         ret
     }
 }
@@ -128,9 +130,27 @@ impl Drop for ErrorModeGuard {
     }
 }
 
-pub fn from_library_name(name: &OsStr) -> PathBuf {
-    let buffer = OsString::new();
+pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
+    let mut buffer = OsString::new();
     buffer.push(name);
     buffer.push(".dll");
     buffer.into()
+}
+
+#[test]
+fn works_this() {
+    let this = Library::this();
+}
+
+#[test]
+fn works_new_kernel32() {
+    let that = Library::new(from_library_name("kernel32")).unwrap();
+    unsafe {
+        that.get(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn fails_new_kernel23() {
+    Library::new("kernel23").err().unwrap();
 }

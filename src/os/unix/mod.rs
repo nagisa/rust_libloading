@@ -155,26 +155,25 @@ pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
 }
 
 #[test]
-fn works_this() {
+fn this() {
     Library::this();
 }
 
 #[test]
-fn works_new_libm() {
+fn new_libm() {
     Library::new(from_library_name("m")).unwrap();
 }
 
 #[test]
-fn fails_new_m() {
+fn new_m() {
     Library::new("m.so").err().unwrap();
 }
 
 #[test]
-fn works_libm_ceil() {
+fn libm_ceil() {
     let lib = Library::new(from_library_name("m")).unwrap();
     let ceil: extern fn(f64) -> f64 = unsafe {
         ::std::mem::transmute(lib.get(&CString::new("ceil").unwrap()).unwrap())
     };
     assert_eq!(ceil(0.45), 1.0);
 }
-
