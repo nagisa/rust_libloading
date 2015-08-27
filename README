@@ -1,0 +1,4 @@
+# libloading
+
+An experiment on making dynamic_lib suck less. Mostly focusing on making this as cross-platform and
+safe as possible.
