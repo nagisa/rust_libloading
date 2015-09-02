@@ -1,5 +1,5 @@
 #![cfg_attr(unix, feature(cstr_to_str, static_mutex))]
-#![cfg_attr(windows, feature(const_fn, result_expect))]
+#![cfg_attr(windows, feature(const_fn))]
 
 use std::ffi::{CStr, OsStr};
 use std::marker;
@@ -89,7 +89,7 @@ impl Library {
     pub unsafe fn get<'lib, T>(&'lib self, symbol: &CStr) -> Result<Symbol<'lib, T>> {
         self.0.get(symbol).map(|from| {
             Symbol {
-                pointer: from as *mut _,
+                inner: from,
                 pd: marker::PhantomData
             }
         })
@@ -101,16 +101,14 @@ impl Library {
 /// This type is a safeguard against using dynamically loaded symbols after `Library` is dropped.
 /// Primary way to create an instance of a `Symbol` is via `Library::get`.
 pub struct Symbol<'lib, T: 'lib> {
-    pointer: *mut ::std::os::raw::c_void,
+    inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
 }
 
 impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe {
-            &*(&self.pointer as *const _ as *const T)
-        }
+        ::std::ops::Deref::deref(&self.inner)
     }
 }
 

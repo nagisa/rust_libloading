@@ -4,29 +4,38 @@
 
 extern crate winapi;
 extern crate kernel32;
+extern crate psapi;
 
 use std::ffi::{CStr, OsStr, OsString};
+use std::marker;
+use std::mem;
 use std::path::PathBuf;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::windows::ffi::OsStrExt;
 
-pub struct Library {
-    handle: winapi::HMODULE
+
+struct Module(pub winapi::HMODULE);
+
+impl Drop for Module {
+    fn drop(&mut self) {
+        with_get_last_error(|| {
+            if unsafe { kernel32::FreeLibrary(self.0) == 0 } {
+                None
+            } else {
+                Some(())
+            }
+        }).unwrap()
+    }
 }
 
-fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
-where F: FnOnce() -> Option<T> {
-    closure().map(Ok).unwrap_or_else(|| {
-        let error = unsafe { kernel32::GetLastError() };
-        Err(if error == 0 {
-            None
-        } else {
-            // TODO: Possibly use FormatMessage (lots of work here)
-            Some(format!("Error {}", error))
-        })
-    })
+
+enum LibraryInner {
+    New(Module),
+    This
 }
+
+pub struct Library(LibraryInner);
 
 impl Library {
     #[inline]
@@ -43,9 +52,7 @@ impl Library {
             if handle.is_null()  {
                 None
             } else {
-                Some(Library {
-                    handle: handle
-                })
+                Some(Library(LibraryInner::New(Module(handle))))
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("LoadLibraryW failed but GetLastError did not report the error")
@@ -58,47 +65,84 @@ impl Library {
 
     #[inline]
     pub fn this() -> Library {
-        with_get_last_error(|| {
-            let mut ret = Library {
-                handle: ptr::null_mut()
-            };
-            if unsafe { kernel32::GetModuleHandleExW(0, ptr::null(), &mut ret.handle) == 0 } {
-                None
-            } else {
-                Some(ret)
-            }
-        }).expect("GetModuleHandleExW failed, but it shouldn’t")
+        Library(LibraryInner::This)
     }
 
-    pub unsafe fn get(&self, symbol: &CStr) -> ::Result<winapi::FARPROC> {
+    pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
+        match self.0 {
+            LibraryInner::New(ref m) => Library::get_regular(m.0, symbol),
+            LibraryInner::This => Library::get_this(symbol)
+        }
+    }
+
+    unsafe fn get_regular<T>(handle: winapi::HMODULE, symbol: &CStr) -> ::Result<Symbol<T>> {
         with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress(self.handle, symbol.as_ptr());
+            let symbol = kernel32::GetProcAddress(handle, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {
-                Some(symbol)
+                Some(Symbol {
+                    pointer: symbol,
+                    _module: None,
+                    pd: marker::PhantomData
+                })
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("GetProcAddress failed but GetLastError did not report the error")
         ))
     }
+
+    unsafe fn get_this<T>(symbol: &CStr) -> ::Result<Symbol<T>> {
+        // We emulate the behaviour of UNIX’s dlopen(NULL) here.
+        with_get_last_error(|| {
+            let mut modules: [winapi::HMODULE; 2048] = mem::uninitialized();
+            let mut count: winapi::DWORD = 0;
+            if psapi::EnumProcessModules(kernel32::GetCurrentProcess(), modules.as_mut_ptr(),
+                                         2048, &mut count) == 0 { return None }
+            for module in &modules[..(count as usize)] {
+                let symbol = kernel32::GetProcAddress(*module, symbol.as_ptr());
+                if !symbol.is_null() {
+                    // If we get here, we found a module, duplicate it.
+                    let mut filename: [u16; 2048] = mem::uninitialized();
+                    if kernel32::GetModuleFileNameW(*module, filename.as_mut_ptr(), 2047) == 0 {
+                        return None
+                    }
+                    let module = kernel32::LoadLibraryW(filename.as_ptr());
+                    return if module.is_null() { None } else { Some(module) };
+                }
+            }
+            None
+        }).map_err(|e| e.unwrap_or_else(||
+            panic!("GetLastError did not report the error encountered during module search")
+        )).and_then(|module| {
+            let new_module = Module(module);
+            Ok(Symbol {
+                _module: Some(new_module),
+                ..try!(Library::get_regular(module, symbol))
+            })
+        })
+    }
 }
 
-impl Drop for Library {
-    fn drop(&mut self) {
-        with_get_last_error(|| {
-            if unsafe { kernel32::FreeLibrary(self.handle) == 0 } {
-                None
-            } else {
-                Some(())
-            }
-        }).unwrap()
+
+pub struct Symbol<T> {
+    pointer: winapi::FARPROC,
+    _module: Option<Module>,
+    pd: marker::PhantomData<T>
+
+}
+
+impl<T> ::std::ops::Deref for Symbol<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        unsafe {
+            &*(&self.pointer as *const _ as *const T)
+        }
     }
 }
 
 
 static USE_THREADERRORMODE: AtomicBool = AtomicBool::new(true);
-
 struct ErrorModeGuard(winapi::DWORD);
 
 impl ErrorModeGuard {
@@ -130,6 +174,21 @@ impl Drop for ErrorModeGuard {
     }
 }
 
+
+fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
+where F: FnOnce() -> Option<T> {
+    closure().map(Ok).unwrap_or_else(|| {
+        let error = unsafe { kernel32::GetLastError() };
+        Err(if error == 0 {
+            None
+        } else {
+            // TODO: Possibly use FormatMessage (lots of work here)
+            Some(format!("Error {}", error))
+        })
+    })
+}
+
+
 pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
     let mut buffer = OsString::new();
     buffer.push(name);
@@ -140,13 +199,17 @@ pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
 #[test]
 fn works_this() {
     let this = Library::this();
+    let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
+        this.get(&::std::ffi::CString::new("ceil").unwrap()).unwrap()
+    };
+    assert_eq!(ceil(0.45), 1.0);
 }
 
 #[test]
 fn works_new_kernel32() {
     let that = Library::new(from_library_name("kernel32")).unwrap();
     unsafe {
-        that.get(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
+        that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
     }
 }
 

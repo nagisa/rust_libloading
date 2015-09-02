@@ -3,6 +3,7 @@
 /// This module should be expanded with more UNIX-specific functionality in the future.
 
 use std::ffi::{CStr, CString, OsStr, OsString};
+use std::marker;
 use std::path::PathBuf;
 use std::sync::{StaticMutex, MUTEX_INIT};
 use std::os::raw;
@@ -86,7 +87,7 @@ impl Library {
         Library::open(None::<&OsStr>, RTLD_NOW).unwrap()
     }
 
-    pub unsafe fn get(&self, symbol: &CStr) -> ::Result<*mut raw::c_void> {
+    pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
@@ -99,10 +100,16 @@ impl Library {
             if symbol.is_null() {
                 None
             } else {
-                Some(symbol)
+                Some(Symbol {
+                    pointer: symbol,
+                    pd: marker::PhantomData
+                })
             }
         }) {
-            Err(None) => Ok(ptr::null_mut()),
+            Err(None) => Ok(Symbol {
+                pointer: ptr::null_mut(),
+                pd: marker::PhantomData
+            }),
             Err(e) => Err(e.unwrap()),
             Ok(x) => Ok(x)
         }
@@ -116,6 +123,21 @@ impl Drop for Library {
         } else {
             None
         }).unwrap();
+    }
+}
+
+
+pub struct Symbol<T> {
+    pointer: *mut raw::c_void,
+    pd: marker::PhantomData<T>
+}
+
+impl<T> ::std::ops::Deref for Symbol<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        unsafe {
+            &*(&self.pointer as *const _ as *const T)
+        }
     }
 }
 
@@ -172,8 +194,8 @@ fn new_m() {
 #[test]
 fn libm_ceil() {
     let lib = Library::new(from_library_name("m")).unwrap();
-    let ceil: extern fn(f64) -> f64 = unsafe {
-        ::std::mem::transmute(lib.get(&CString::new("ceil").unwrap()).unwrap())
+    let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
+        lib.get(&CString::new("ceil").unwrap()).unwrap()
     };
     assert_eq!(ceil(0.45), 1.0);
 }

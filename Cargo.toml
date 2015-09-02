@@ -3,6 +3,13 @@ name = "libloading"
 version = "0.1.0"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 
-[dependencies]
-winapi = "0.2"
-kernel32-sys = "0.1"
+[dependencies.winapi]
+git = "http://github.com/retep998/winapi-rs.git"
+
+[dependencies.kernel32-sys]
+git = "http://github.com/retep998/winapi-rs.git"
+path = "lib/kernel32-sys"
+
+[dependencies.psapi-sys]
+git = "http://github.com/retep998/winapi-rs.git"
+path = "lib/psapi-sys"
