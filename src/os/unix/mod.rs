@@ -1,10 +1,9 @@
 /// UNIX implementation of dynamic library loading.
 ///
-/// This module should be expanded with more UNIX-specific functionality in the future.
+/// This module should eventually be expanded with more UNIX-specific functionality in the future.
 
-use std::ffi::{CStr, CString, OsStr, OsString};
+use std::ffi::{CStr, CString, OsStr};
 use std::marker;
-use std::path::PathBuf;
 use std::sync::{StaticMutex, MUTEX_INIT};
 use std::os::raw;
 use std::ptr;
@@ -14,7 +13,7 @@ use std::os::unix::ffi::OsStrExt;
 //
 // First of all, whole error handling scheme in libdl is done via setting and querying some global
 // state, therefore it is not safe to use libdl in MT-capable environment at all. Only in POSIX
-// 2008+TC1 a thread-local state was allowed, which for our purposes is not relevant at all.
+// 2008+TC1 a thread-local state was allowed, which for our purposes is way too late.
 fn with_dlerror<T, F>(closure: F) -> Result<T, Option<String>>
 where F: FnOnce() -> Option<T> {
     // We will guard all uses of libdl library with our own mutex. This makes libdl
@@ -26,13 +25,13 @@ where F: FnOnce() -> Option<T> {
     // error inside the dlsym binding instead.
     //
     // In all the other cases, clearing the error here will only be hiding misuse of these bindings
-    // or the libdl instead.
+    // or the libdl.
     closure().map(Ok).unwrap_or_else(|| unsafe {
         // This code will only get executed if the `closure` returns `None`.
         let error = dlerror();
         if error.is_null() {
             // In non-dlsym case this may happen when there’s bugs in our bindings or there’s
-            // libloading user of libdl; possibly in another thread.
+            // non-libloading user of libdl; possibly in another thread.
             return Err(None)
         }
         // You can’t even rely on error string being static here; call to subsequent dlerror may
@@ -42,11 +41,11 @@ where F: FnOnce() -> Option<T> {
         // in any system that uses non-utf8 locale, so I doubt there’s a problem here.
         Err(Some(CStr::from_ptr(error).to_string_lossy().into_owned()))
         // FIXME?: Since we do a copy of the error string above, maybe we should call dlerror again
-        // to let libdl know it may free the string now?
+        // to let libdl know it may free its copy of the string now?
     })
 }
 
-
+/// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library {
     handle: *mut raw::c_void
 }
@@ -77,16 +76,39 @@ impl Library {
         ))
     }
 
+    /// Find and load a shared library (module).
+    ///
+    /// Locations where library is searched for is platform specific and can’t be adjusted
+    /// portably.
+    ///
+    /// Corresponds to `dlopen(filename)`.
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
         Library::open(Some(filename), RTLD_LAZY)
     }
 
+    /// Load all already loaded dynamic libraries (modules).
+    ///
+    /// This allows retrieving symbols from any already **dynamically** loaded library, without
+    /// specifying the exact library.
+    ///
+    /// Corresponds to `dlopen(NULL)`.
     #[inline]
     pub fn this() -> Library {
         Library::open(None::<&OsStr>, RTLD_NOW).unwrap()
     }
 
+    /// Get a symbol by name.
+    ///
+    /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
+    /// will not work.
+    ///
+    /// # Unsafety
+    ///
+    /// The pointer to a symbol of arbitrary type or kind is returned. Requesting for function
+    /// pointer while the symbol is not one and vice versa is not memory safe.
+    ///
+    /// The return value does not ensure the symbol does not outlive the library.
     pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
@@ -126,7 +148,10 @@ impl Drop for Library {
     }
 }
 
-
+/// Symbol from a library.
+///
+/// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
+/// `Symbol` does not outlive `Library` it comes from.
 pub struct Symbol<T> {
     pointer: *mut raw::c_void,
     pd: marker::PhantomData<T>
@@ -153,29 +178,6 @@ extern {
 const RTLD_LAZY: raw::c_int = 1;
 const RTLD_NOW: raw::c_int = 2;
 
-#[cfg(target_os="macos")]
-pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
-    let mut buffer = OsString::new();
-    buffer.push("lib");
-    buffer.push(name);
-    buffer.push(".dylib");
-    buffer.into()
-}
-
-#[cfg(any(target_os="linux",
-          target_os="freebsd",
-          target_os="dragonfly",
-          target_os="bitrig",
-          target_os="netbsd",
-          target_os="openbsd"))]
-pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
-    let mut buffer = OsString::new();
-    buffer.push("lib");
-    buffer.push(name);
-    buffer.push(".so");
-    buffer.into()
-}
-
 #[test]
 fn this() {
     Library::this();
@@ -183,17 +185,17 @@ fn this() {
 
 #[test]
 fn new_libm() {
-    Library::new(from_library_name("m")).unwrap();
+    Library::new("libm.so.6").unwrap();
 }
 
 #[test]
 fn new_m() {
-    Library::new("m.so").err().unwrap();
+    Library::new("m").err().unwrap();
 }
 
 #[test]
 fn libm_ceil() {
-    let lib = Library::new(from_library_name("m")).unwrap();
+    let lib = Library::new("libm.so.6").unwrap();
     let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
         lib.get(&CString::new("ceil").unwrap()).unwrap()
     };

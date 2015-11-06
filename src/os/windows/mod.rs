@@ -4,7 +4,6 @@
 
 extern crate winapi;
 extern crate kernel32;
-extern crate psapi;
 
 use std::ffi::{CStr, OsStr, OsString};
 use std::marker;
@@ -30,14 +29,16 @@ impl Drop for Module {
 }
 
 
-enum LibraryInner {
-    New(Module),
-    This
-}
-
-pub struct Library(LibraryInner);
+/// A platform-specific equivalent of the cross-platform `Library`.
+pub struct Library(Module);
 
 impl Library {
+    /// Find and load a shared library (module).
+    ///
+    /// Locations where library is searched for is platform specific and can’t be adjusted
+    /// portably.
+    ///
+    /// Corresponds to `LoadLibraryW(filename)`.
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
         let mut wide_filename: Vec<u16> = filename.as_ref().encode_wide().collect();
@@ -52,7 +53,7 @@ impl Library {
             if handle.is_null()  {
                 None
             } else {
-                Some(Library(LibraryInner::New(Module(handle))))
+                Some(Library(Module(handle)))
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("LoadLibraryW failed but GetLastError did not report the error")
@@ -63,27 +64,25 @@ impl Library {
         ret
     }
 
-    #[inline]
-    pub fn this() -> Library {
-        Library(LibraryInner::This)
-    }
-
+    /// Get a symbol by name.
+    ///
+    /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
+    /// will not work.
+    ///
+    /// # Unsafety
+    ///
+    /// The pointer to a symbol of arbitrary type or kind is returned. Requesting for function
+    /// pointer while the symbol is not one and vice versa is not memory safe.
+    ///
+    /// The return value does not ensure the symbol does not outlive the library.
     pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
-        match self.0 {
-            LibraryInner::New(ref m) => Library::get_regular(m.0, symbol),
-            LibraryInner::This => Library::get_this(symbol)
-        }
-    }
-
-    unsafe fn get_regular<T>(handle: winapi::HMODULE, symbol: &CStr) -> ::Result<Symbol<T>> {
         with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress(handle, symbol.as_ptr());
+            let symbol = kernel32::GetProcAddress((self.0).0, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {
                 Some(Symbol {
                     pointer: symbol,
-                    _module: None,
                     pd: marker::PhantomData
                 })
             }
@@ -91,45 +90,12 @@ impl Library {
             panic!("GetProcAddress failed but GetLastError did not report the error")
         ))
     }
-
-    unsafe fn get_this<T>(symbol: &CStr) -> ::Result<Symbol<T>> {
-        // We emulate the behaviour of UNIX’s dlopen(NULL) here.
-        with_get_last_error(|| {
-            let mut modules: [winapi::HMODULE; 2048] = mem::uninitialized();
-            let mut count: winapi::DWORD = 0;
-            if psapi::EnumProcessModules(kernel32::GetCurrentProcess(), modules.as_mut_ptr(),
-                                         2048, &mut count) == 0 { return None }
-            for module in &modules[..(count as usize)] {
-                let symbol = kernel32::GetProcAddress(*module, symbol.as_ptr());
-                if !symbol.is_null() {
-                    // If we get here, we found a module, duplicate it.
-                    let mut filename: [u16; 2048] = mem::uninitialized();
-                    if kernel32::GetModuleFileNameW(*module, filename.as_mut_ptr(), 2047) == 0 {
-                        return None
-                    }
-                    let module = kernel32::LoadLibraryW(filename.as_ptr());
-                    return if module.is_null() { None } else { Some(module) };
-                }
-            }
-            None
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("GetLastError did not report the error encountered during module search")
-        )).and_then(|module| {
-            let new_module = Module(module);
-            Ok(Symbol {
-                _module: Some(new_module),
-                ..try!(Library::get_regular(module, symbol))
-            })
-        })
-    }
 }
 
 
 pub struct Symbol<T> {
     pointer: winapi::FARPROC,
-    _module: Option<Module>,
     pd: marker::PhantomData<T>
-
 }
 
 impl<T> ::std::ops::Deref for Symbol<T> {
@@ -189,25 +155,9 @@ where F: FnOnce() -> Option<T> {
 }
 
 
-pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
-    let mut buffer = OsString::new();
-    buffer.push(name);
-    buffer.push(".dll");
-    buffer.into()
-}
-
-#[test]
-fn works_this() {
-    let this = Library::this();
-    let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
-        this.get(&::std::ffi::CString::new("ceil").unwrap()).unwrap()
-    };
-    assert_eq!(ceil(0.45), 1.0);
-}
-
 #[test]
 fn works_new_kernel32() {
-    let that = Library::new(from_library_name("kernel32")).unwrap();
+    let that = Library::new("kernel32.dll").unwrap();
     unsafe {
         that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
     }

@@ -1,9 +1,16 @@
-#![cfg_attr(unix, feature(cstr_to_str, static_mutex))]
+//! A memory-safe wrapper around system dynamic library primitives.
+//!
+//! With this library you can load [dynamic libraries](struct.Library.html) and retrieve
+//! [symbols](struct.Symbol.html). This library ensures you won’t somehow close the library before
+//! you’re done using the symbol.
+//!
+//! Less safe platform specific bindings are available in the [`os::platform`](os/index.html)
+//! modules.
+#![cfg_attr(unix, feature(static_mutex))]
 #![cfg_attr(windows, feature(const_fn))]
 
 use std::ffi::{CStr, OsStr};
 use std::marker;
-use std::path::PathBuf;
 
 #[cfg(any(target_os="linux",
           target_os="macos",
@@ -18,7 +25,6 @@ use self::os::windows as imp;
 
 pub mod os;
 
-
 pub type Result<T> = ::std::result::Result<T, String>;
 
 /// A dynamically loaded library.
@@ -26,12 +32,10 @@ pub type Result<T> = ::std::result::Result<T, String>;
 /// Only the behaviour that can be reasonably consistently implemented across platforms is provided
 /// here.
 ///
-/// See the `os::platform` modules for platform-specific and less safe implementations.
-///
 /// # Examples
 ///
 /// ```ignore
-/// let lib = Library::new(from_library_name("m")).unwrap();
+/// let lib = Library::new("libm.so.6").unwrap();
 /// let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
 ///     lib.get(&CString::new("ceil").unwrap()).unwrap()
 /// };
@@ -40,28 +44,12 @@ pub type Result<T> = ::std::result::Result<T, String>;
 pub struct Library(imp::Library);
 
 impl Library {
-    /// Find and load a shared library.
+    /// Find and load a shared library (module).
     ///
-    /// Locations where library is searched for is platform specific and can’t be changed portably.
+    /// Locations where library is searched for is platform specific and can’t be adjusted
+    /// portably.
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library> {
         imp::Library::new(filename).map(Library)
-    }
-
-    /// Load all already loaded libraries.
-    ///
-    /// This allows retrieving symbols from already **dynamically** loaded libraries.
-    /// “Dynamically” here is a very important part: you cannot load symbols linked into the
-    /// executable statically. For example following code will not work:
-    ///
-    /// ```ignore
-    /// let lib = Library::this();
-    /// let main: Symbol<extern fn() -> usize> = unsafe {
-    ///     // function `main` is usually linked-in statically
-    ///     lib.get(&::std::ffi::CString::new("main").unwrap()).unwrap()
-    /// };
-    /// ```
-    pub fn this() -> Library {
-        Library(imp::Library::this())
     }
 
     /// Get a symbol by name.
@@ -76,15 +64,21 @@ impl Library {
     ///
     /// # Examples
     ///
+    /// Simple function:
+    ///
     /// ```ignore
-    /// // Function
     /// let sin: Symbol<extern fn(f64) -> f64> = unsafe {
     ///     lib.get(&CString::new("sin").unwrap()).unwrap()
     /// };
-    /// // Static/TLS variable
+    /// ```
+    ///
+    /// A static/TLS variable:
+    ///
+    /// ```ignore
     /// let errno: Symbol<*mut u32> = unsafe {
     ///     lib.get(&CString::new("errno").unwrap()).unwrap()
     /// };
+    /// ```
     /// ```
     pub unsafe fn get<'lib, T>(&'lib self, symbol: &CStr) -> Result<Symbol<'lib, T>> {
         self.0.get(symbol).map(|from| {
@@ -112,31 +106,10 @@ impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
     }
 }
 
-/// Convert library name into a filename one can pass to `Library::new()`
-///
-/// This function converts library name into a filename the library is expected to have on target
-/// platform:
-///
-/// * UNIXes: `m` → `libm.so`;
-/// * OS X: `m` → `libm.dylib`;
-/// * Windows: `m` → `m.dll`;
-///
-/// Allowing for somewhat more platform independent code.
-///
-/// # Examples
-///
-/// ```ignore
-/// let math = Library::new(from_library_name("m")).unwrap();
-/// // use math library here
-/// ```
-pub fn from_library_name<P: AsRef<OsStr>>(name: P) -> PathBuf {
-    imp::from_library_name(name)
-}
-
 #[cfg(not(target_os="windows"))]
 #[test]
 fn libm() {
-    let lib = Library::new(from_library_name("m")).unwrap();
+    let lib = Library::new("libm.so.6").unwrap();
     let sin: Symbol<extern fn(f64) -> f64> = unsafe {
         lib.get(&::std::ffi::CString::new("sin").unwrap()).unwrap()
     };
@@ -145,15 +118,5 @@ fn libm() {
         lib.get(&::std::ffi::CString::new("errno").unwrap()).unwrap()
     };
     assert!(unsafe { **errno } != 0);
-}
-
-#[cfg(not(target_os="windows"))]
-#[test]
-fn this_strlen() {
-    // I couldn’t find anything that works on windows here hehe
-    const SYMBOL: &'static str = "strlen";
-    let lib = Library::this();
-    let _symbol: Symbol<extern fn() -> usize> = unsafe {
-        lib.get(&::std::ffi::CString::new(SYMBOL).unwrap()).unwrap()
-    };
+    unsafe { **errno = 0; }
 }
