@@ -5,10 +5,8 @@
 extern crate winapi;
 extern crate kernel32;
 
-use std::ffi::{CStr, OsStr, OsString};
+use std::ffi::{CStr, OsStr};
 use std::marker;
-use std::mem;
-use std::path::PathBuf;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::windows::ffi::OsStrExt;

@@ -87,10 +87,10 @@ impl Library {
         Library::open(Some(filename), RTLD_LAZY)
     }
 
-    /// Load all already loaded dynamic libraries (modules).
+    /// Load the dynamic libraries linked into main program.
     ///
-    /// This allows retrieving symbols from any already **dynamically** loaded library, without
-    /// specifying the exact library.
+    /// This allows retrieving symbols from any **dynamic** library linked into the program,
+    /// without specifying the exact library.
     ///
     /// Corresponds to `dlopen(NULL)`.
     #[inline]
