@@ -1,9 +1,10 @@
 /// Windows implementation of dynamic library loading.
 ///
 /// This module should be expanded with more Windows-specific functionality in the future.
-
 extern crate winapi;
 extern crate kernel32;
+
+use util::{CheckedCStr, CStringAsRef};
 
 use std::ffi::{CStr, OsStr, OsString};
 use std::marker;
@@ -51,7 +52,8 @@ impl Library {
     /// Get a symbol by name.
     ///
     /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work.
+    /// will not work. Symbol may or may not be terminated with a null byte (see “Premature
+    /// optimisation”).
     ///
     /// # Unsafety
     ///
@@ -59,9 +61,15 @@ impl Library {
     /// pointer while the symbol is not one and vice versa is not memory safe.
     ///
     /// The return value does not ensure the symbol does not outlive the library.
-    pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
+    ///
+    /// # Premature optimisation
+    ///
+    /// You may append a null byte at the end of the byte string to avoid string allocation in some
+    /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+        let symbol = try!(CheckedCStr::from_bytes(symbol));
         with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress(self.0, symbol.as_ptr());
+            let symbol = kernel32::GetProcAddress(self.0, symbol.cstring_ref());
             if symbol.is_null() {
                 None
             } else {
@@ -172,12 +180,19 @@ where F: FnOnce() -> Option<T> {
     })
 }
 
-
 #[test]
-fn works_new_kernel32() {
+fn works_GetLastError() {
     let that = Library::new("kernel32.dll").unwrap();
     unsafe {
         that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn works_GetLastError0() {
+    let that = Library::new("kernel32.dll").unwrap();
+    unsafe {
+        that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError\0").unwrap()).unwrap();
     }
 }
 

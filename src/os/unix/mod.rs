@@ -1,6 +1,7 @@
 /// UNIX implementation of dynamic library loading.
 ///
 /// This module should eventually be expanded with more UNIX-specific functionality in the future.
+use util::{CheckedCStr, CStringAsRef};
 
 use std::ffi::{CStr, CString, OsStr};
 use std::marker;
@@ -109,7 +110,8 @@ impl Library {
     /// Get a symbol by name.
     ///
     /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work.
+    /// will not work. Symbol may or may not be terminated with a null byte (see “Premature
+    /// optimisation”).
     ///
     /// # Unsafety
     ///
@@ -117,7 +119,13 @@ impl Library {
     /// pointer while the symbol is not one and vice versa is not memory safe.
     ///
     /// The return value does not ensure the symbol does not outlive the library.
-    pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
+    ///
+    /// # Premature optimisation
+    ///
+    /// You may append a null byte at the end of the byte string to avoid string allocation in some
+    /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+        let symbol = try!(CheckedCStr::from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
@@ -126,7 +134,7 @@ impl Library {
         // fully prevent it.
         match with_dlerror(|| {
             dlerror();
-            let symbol = dlsym(self.handle, symbol.as_ptr());
+            let symbol = dlsym(self.handle, symbol.cstring_ref());
             if symbol.is_null() {
                 None
             } else {
@@ -253,7 +261,16 @@ fn new_m() {
 fn libm_ceil() {
     let lib = Library::new(LIBM).unwrap();
     let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
-        lib.get(&CString::new("ceil").unwrap()).unwrap()
+        lib.get(b"ceil").unwrap()
+    };
+    assert_eq!(ceil(0.45), 1.0);
+}
+
+#[test]
+fn libm_ceil0() {
+    let lib = Library::new(LIBM).unwrap();
+    let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
+        lib.get(b"ceil\0").unwrap()
     };
     assert_eq!(ceil(0.45), 1.0);
 }

@@ -6,7 +6,7 @@
 //!
 //! Less safe platform specific bindings are available in the [`os::platform`](os/index.html)
 //! modules.
-use std::ffi::{CStr, OsStr};
+use std::ffi::OsStr;
 use std::marker;
 
 #[macro_use]
@@ -24,6 +24,7 @@ use self::os::unix as imp;
 use self::os::windows as imp;
 
 pub mod os;
+mod util;
 
 pub type Result<T> = ::std::result::Result<T, String>;
 
@@ -55,12 +56,18 @@ impl Library {
     /// Get a symbol by name.
     ///
     /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work.
+    /// will not work. Symbol may or may not be terminated with a null byte (see “Premature
+    /// optimisation”).
     ///
     /// # Unsafety
     ///
     /// The pointer to a symbol of arbitrary type or kind is returned. Requesting for function
     /// pointer while the symbol is not one and vice versa is not memory safe.
+    ///
+    /// # Premature optimisation
+    ///
+    /// You may append a null byte at the end of the byte string to avoid string allocation in some
+    /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
     ///
     /// # Examples
     ///
@@ -68,19 +75,18 @@ impl Library {
     ///
     /// ```ignore
     /// let sin: Symbol<extern fn(f64) -> f64> = unsafe {
-    ///     lib.get(&CString::new("sin").unwrap()).unwrap()
+    ///     lib.get(b"sin\0").unwrap()
     /// };
     /// ```
     ///
-    /// A static/TLS variable:
+    /// A static or TLS variable:
     ///
     /// ```ignore
     /// let errno: Symbol<*mut u32> = unsafe {
-    ///     lib.get(&CString::new("errno").unwrap()).unwrap()
+    ///     lib.get(b"errno\0").unwrap()
     /// };
     /// ```
-    /// ```
-    pub unsafe fn get<'lib, T>(&'lib self, symbol: &CStr) -> Result<Symbol<'lib, T>> {
+    pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>> {
         self.0.get(symbol).map(|from| {
             Symbol {
                 inner: from,
@@ -111,11 +117,11 @@ impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
 fn libm() {
     let lib = Library::new("libm.so.6").unwrap();
     let sin: Symbol<extern fn(f64) -> f64> = unsafe {
-        lib.get(&::std::ffi::CString::new("sin").unwrap()).unwrap()
+        lib.get(b"sin").unwrap()
     };
     assert!(sin(::std::f64::INFINITY).is_nan());
     let errno: Symbol<*mut u32> = unsafe {
-        lib.get(&::std::ffi::CString::new("errno").unwrap()).unwrap()
+        lib.get(b"errno").unwrap()
     };
     assert!(unsafe { **errno } != 0);
     unsafe { **errno = 0; }
