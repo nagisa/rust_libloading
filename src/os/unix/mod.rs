@@ -64,10 +64,14 @@ impl Library {
         let ptr = match filename {
             Err(_) => return Err("library name contains null bytes".into()),
             Ok(None) => ptr::null(),
-            Ok(Some(f)) => f.as_ptr(),
+            Ok(Some(ref f)) => f.as_ptr(),
         };
-        with_dlerror(|| {
-            let result = unsafe { dlopen(ptr, flags) };
+        with_dlerror(move || {
+            let result = unsafe {
+                let r = dlopen(ptr, flags);
+                ::std::mem::drop(filename);
+                r
+            };
             if result.is_null() {
                 None
             } else {
