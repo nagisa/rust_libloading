@@ -7,6 +7,7 @@ use std::marker;
 use std::sync::{StaticMutex, MUTEX_INIT};
 use std::os::raw;
 use std::ptr;
+use std::mem;
 use std::os::unix::ffi::OsStrExt;
 
 // libdl is retarded.
@@ -148,6 +149,12 @@ impl Drop for Library {
     }
 }
 
+impl ::std::fmt::Debug for Library {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        f.write_str(&format!("Library@{:p}", self.handle))
+    }
+}
+
 /// Symbol from a library.
 ///
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
@@ -166,17 +173,47 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     }
 }
 
+impl<T> ::std::fmt::Debug for Symbol<T> {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        unsafe {
+            let mut info: DlInfo = mem::uninitialized();
+            if dladdr(self.pointer, &mut info) != 0 {
+                if info.dli_sname.is_null() {
+                    f.write_str(&format!("Symbol@{:p} from {:?}",
+                                         self.pointer,
+                                         CStr::from_ptr(info.dli_fname)))
+                } else {
+                    f.write_str(&format!("Symbol {:?}@{:p} from {:?}",
+                                         CStr::from_ptr(info.dli_sname), self.pointer,
+                                         CStr::from_ptr(info.dli_fname)))
+                }
+            } else {
+                f.write_str(&format!("Symbol@{:p}", self.pointer))
+            }
+        }
+    }
+}
 
-#[link(name = "dl")]
+// Platform specific things
+
 extern {
     fn dlopen(filename: *const raw::c_char, flags: raw::c_int) -> *mut raw::c_void;
     fn dlclose(handle: *mut raw::c_void) -> raw::c_int;
     fn dlsym(handle: *mut raw::c_void, symbol: *const raw::c_char) -> *mut raw::c_void;
     fn dlerror() -> *mut raw::c_char;
+    fn dladdr(addr: *mut raw::c_void, info: *mut DlInfo) -> raw::c_int;
 }
 
 const RTLD_LAZY: raw::c_int = 1;
 const RTLD_NOW: raw::c_int = 2;
+
+#[repr(C)]
+struct DlInfo {
+  dli_fname: *const raw::c_char,
+  dli_fbase: *mut raw::c_void,
+  dli_sname: *const raw::c_char,
+  dli_saddr: *mut raw::c_void
+}
 
 #[test]
 fn this() {

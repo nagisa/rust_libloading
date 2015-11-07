@@ -1,4 +1,4 @@
-//! A memory-safe wrapper around system dynamic library primitives.
+//! A memory-safer wrapper around system dynamic library primitives.
 //!
 //! With this library you can load [dynamic libraries](struct.Library.html) and retrieve
 //! [symbols](struct.Symbol.html). This library ensures you won’t somehow close the library before

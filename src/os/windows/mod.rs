@@ -7,9 +7,10 @@ extern crate kernel32;
 
 use std::ffi::{CStr, OsStr};
 use std::marker;
+use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 
 
 struct Module(pub winapi::HMODULE);
@@ -25,7 +26,6 @@ impl Drop for Module {
         }).unwrap()
     }
 }
-
 
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(Module);
@@ -90,6 +90,19 @@ impl Library {
     }
 }
 
+impl ::std::fmt::Debug for Library {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        let buf = [winapi::WCHAR; 1024] = mem::uninitialized();
+        let len = unsafe { kernel32::GetModuleFileNameW((self.0).0, &mut buf, 1024) };
+        if len == 0 {
+            f.write_str(&format!("Library@{:p}", (self.0).0))
+        } else {
+            let string: OsString = OsString::from_wide(&buf[..len]);
+            f.write_str(&format!("Library@{:p} from {:?}", (self.0).0, string))
+        }
+    }
+}
+
 
 pub struct Symbol<T> {
     pointer: winapi::FARPROC,
@@ -102,6 +115,12 @@ impl<T> ::std::ops::Deref for Symbol<T> {
         unsafe {
             &*(&self.pointer as *const _ as *const T)
         }
+    }
+}
+
+impl ::std::fmt::Debug for Symbol {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        f.write_str("Symbol@{:p}", self.pointer)
     }
 }
 

@@ -2,6 +2,7 @@
 name = "libloading"
 version = "0.2.0"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
+build = "build.rs"
 
 [dependencies]
 winapi = "0.2"
