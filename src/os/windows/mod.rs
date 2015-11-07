@@ -5,7 +5,7 @@
 extern crate winapi;
 extern crate kernel32;
 
-use std::ffi::{CStr, OsStr};
+use std::ffi::{CStr, OsStr, OsString};
 use std::marker;
 use std::mem;
 use std::ptr;
@@ -92,13 +92,16 @@ impl Library {
 
 impl ::std::fmt::Debug for Library {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        let buf = [winapi::WCHAR; 1024] = mem::uninitialized();
-        let len = unsafe { kernel32::GetModuleFileNameW((self.0).0, &mut buf, 1024) };
-        if len == 0 {
-            f.write_str(&format!("Library@{:p}", (self.0).0))
-        } else {
-            let string: OsString = OsString::from_wide(&buf[..len]);
-            f.write_str(&format!("Library@{:p} from {:?}", (self.0).0, string))
+        unsafe {
+            let mut buf: [winapi::WCHAR; 1024] = mem::uninitialized();
+            let len = kernel32::GetModuleFileNameW((self.0).0,
+                                                   (&mut buf[..]).as_mut_ptr(), 1024) as usize;
+            if len == 0 {
+                f.write_str(&format!("Library@{:p}", (self.0).0))
+            } else {
+                let string: OsString = OsString::from_wide(&buf[..len]);
+                f.write_str(&format!("Library@{:p} from {:?}", (self.0).0, string))
+            }
         }
     }
 }
@@ -118,9 +121,9 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     }
 }
 
-impl ::std::fmt::Debug for Symbol {
+impl<T> ::std::fmt::Debug for Symbol<T> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        f.write_str("Symbol@{:p}", self.pointer)
+        f.write_str(&format!("Symbol@{:p}", self.pointer))
     }
 }
 
