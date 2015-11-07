@@ -13,22 +13,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 
 
-struct Module(pub winapi::HMODULE);
-
-impl Drop for Module {
-    fn drop(&mut self) {
-        with_get_last_error(|| {
-            if unsafe { kernel32::FreeLibrary(self.0) == 0 } {
-                None
-            } else {
-                Some(())
-            }
-        }).unwrap()
-    }
-}
 
 /// A platform-specific equivalent of the cross-platform `Library`.
-pub struct Library(Module);
+pub struct Library(winapi::HMODULE);
 
 impl Library {
     /// Find and load a shared library (module).
@@ -51,7 +38,7 @@ impl Library {
             if handle.is_null()  {
                 None
             } else {
-                Some(Library(Module(handle)))
+                Some(Library(handle))
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("LoadLibraryW failed but GetLastError did not report the error")
@@ -75,7 +62,7 @@ impl Library {
     /// The return value does not ensure the symbol does not outlive the library.
     pub unsafe fn get<T>(&self, symbol: &CStr) -> ::Result<Symbol<T>> {
         with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress((self.0).0, symbol.as_ptr());
+            let symbol = kernel32::GetProcAddress(self.0, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {
@@ -90,17 +77,29 @@ impl Library {
     }
 }
 
+impl Drop for Library {
+    fn drop(&mut self) {
+        with_get_last_error(|| {
+            if unsafe { kernel32::FreeLibrary(self.0) == 0 } {
+                None
+            } else {
+                Some(())
+            }
+        }).unwrap()
+    }
+}
+
 impl ::std::fmt::Debug for Library {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         unsafe {
             let mut buf: [winapi::WCHAR; 1024] = mem::uninitialized();
-            let len = kernel32::GetModuleFileNameW((self.0).0,
+            let len = kernel32::GetModuleFileNameW(self.0,
                                                    (&mut buf[..]).as_mut_ptr(), 1024) as usize;
             if len == 0 {
-                f.write_str(&format!("Library@{:p}", (self.0).0))
+                f.write_str(&format!("Library@{:p}", self.0))
             } else {
                 let string: OsString = OsString::from_wide(&buf[..len]);
-                f.write_str(&format!("Library@{:p} from {:?}", (self.0).0, string))
+                f.write_str(&format!("Library@{:p} from {:?}", self.0, string))
             }
         }
     }
