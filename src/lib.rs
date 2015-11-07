@@ -6,11 +6,11 @@
 //!
 //! Less safe platform specific bindings are available in the [`os::platform`](os/index.html)
 //! modules.
-#![cfg_attr(unix, feature(static_mutex))]
-#![cfg_attr(windows, feature(const_fn))]
-
 use std::ffi::{CStr, OsStr};
 use std::marker;
+
+#[macro_use]
+extern crate lazy_static;
 
 #[cfg(any(target_os="linux",
           target_os="macos",

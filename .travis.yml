@@ -1,0 +1,11 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - linux
+  - osx
+env:
+  - ARCH=x86_64
+  - ARCH=i686

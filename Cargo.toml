@@ -7,3 +7,4 @@ build = "build.rs"
 [dependencies]
 winapi = "0.2"
 kernel32-sys = "0.2"
+lazy_static = "0.1"

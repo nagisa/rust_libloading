@@ -1,12 +1,16 @@
 environment:
   matrix:
-  - TARGET: x86_64-pc-windows-msvc
-  - TARGET: i686-pc-windows-msvc
-  - TARGET: x86_64-pc-windows-gnu
-  - TARGET: i686-pc-windows-gnu
+  - TARGET: nightly-x86_64-pc-windows-msvc
+  - TARGET: nightly-i686-pc-windows-msvc
+  - TARGET: nightly-x86_64-pc-windows-gnu
+  - TARGET: nightly-i686-pc-windows-gnu
+  - TARGET: stable-x86_64-pc-windows-msvc
+  - TARGET: stable-i686-pc-windows-msvc
+  - TARGET: stable-x86_64-pc-windows-gnu
+  - TARGET: stable-i686-pc-windows-gnu
 install:
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-nightly-${env:TARGET}.exe" -FileName "rust-nightly.exe"
-  - ps: .\rust-nightly.exe /VERYSILENT /NORESTART /DIR="C:\rust" | Out-Null
+  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:TARGET}.exe" -FileName "rust.exe"
+  - ps: .\rust.exe /VERYSILENT /NORESTART /DIR="C:\rust" | Out-Null
   - ps: $env:PATH="$env:PATH;C:\rust\bin"
   - rustc -vV
   - cargo -vV

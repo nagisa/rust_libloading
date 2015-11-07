@@ -4,7 +4,7 @@
 
 use std::ffi::{CStr, CString, OsStr};
 use std::marker;
-use std::sync::{StaticMutex, MUTEX_INIT};
+use std::sync::Mutex;
 use std::os::raw;
 use std::ptr;
 use std::mem;
@@ -19,7 +19,9 @@ fn with_dlerror<T, F>(closure: F) -> Result<T, Option<String>>
 where F: FnOnce() -> Option<T> {
     // We will guard all uses of libdl library with our own mutex. This makes libdl
     // safe to use in MT programs provided the only way a program uses libdl is via this library.
-    static MUTEX: StaticMutex = MUTEX_INIT;
+    lazy_static! {
+        static ref MUTEX: Mutex<()> = Mutex::new(());
+    }
     let _lock = MUTEX.lock();
     // While we could could call libdl here to clear the previous error value, only the dlsym
     // depends on it being cleared beforehand and only in some cases too. We will instead clear the

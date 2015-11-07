@@ -126,17 +126,17 @@ impl<T> ::std::fmt::Debug for Symbol<T> {
 }
 
 
-static USE_THREADERRORMODE: AtomicBool = AtomicBool::new(true);
+static USE_ERRORMODE: AtomicBool = ATOMIC_BOOL_INIT;
 struct ErrorModeGuard(winapi::DWORD);
 
 impl ErrorModeGuard {
     fn new() -> ErrorModeGuard {
         let mut ret = ErrorModeGuard(0);
 
-        if USE_THREADERRORMODE.load(Ordering::Acquire) {
+        if !USE_ERRORMODE.load(Ordering::Acquire) {
             if unsafe { kernel32::SetThreadErrorMode(1, &mut ret.0) == 0
                         && kernel32::GetLastError() == winapi::ERROR_CALL_NOT_IMPLEMENTED } {
-                USE_THREADERRORMODE.store(false, Ordering::Release);
+                USE_ERRORMODE.store(true, Ordering::Release);
             } else {
                 return ret;
             }
@@ -149,7 +149,7 @@ impl ErrorModeGuard {
 impl Drop for ErrorModeGuard {
     fn drop(&mut self) {
         unsafe {
-            if USE_THREADERRORMODE.load(Ordering::Relaxed) {
+            if !USE_ERRORMODE.load(Ordering::Relaxed) {
                 kernel32::SetThreadErrorMode(self.0, ptr::null_mut());
             } else {
                 kernel32::SetErrorMode(self.0);
