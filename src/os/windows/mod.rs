@@ -9,7 +9,7 @@ use std::ffi::{CStr, OsStr, OsString};
 use std::marker;
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 
 
