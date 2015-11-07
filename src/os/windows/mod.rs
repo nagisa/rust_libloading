@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 
 
-
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(winapi::HMODULE);
 
@@ -162,14 +161,14 @@ impl Drop for ErrorModeGuard {
 
 fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
 where F: FnOnce() -> Option<T> {
-    closure().map(Ok).unwrap_or_else(|| {
+    closure().ok_or_else(|| {
         let error = unsafe { kernel32::GetLastError() };
-        Err(if error == 0 {
+        if error == 0 {
             None
         } else {
             // TODO: Possibly use FormatMessage (lots of work here)
             Some(format!("Error {}", error))
-        })
+        }
     })
 }
 

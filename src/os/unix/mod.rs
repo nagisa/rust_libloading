@@ -27,22 +27,23 @@ where F: FnOnce() -> Option<T> {
     //
     // In all the other cases, clearing the error here will only be hiding misuse of these bindings
     // or the libdl.
-    closure().map(Ok).unwrap_or_else(|| unsafe {
+    closure().ok_or_else(|| unsafe {
         // This code will only get executed if the `closure` returns `None`.
         let error = dlerror();
         if error.is_null() {
             // In non-dlsym case this may happen when there’s bugs in our bindings or there’s
             // non-libloading user of libdl; possibly in another thread.
-            return Err(None)
+            None
+        } else {
+            // You can’t even rely on error string being static here; call to subsequent dlerror
+            // may invalidate or overwrite the error message. Why couldn’t they simply give up the
+            // ownership over the message?
+            // TODO: should do locale-aware conversion here. OTOH Rust doesn’t seem to work well in
+            // any system that uses non-utf8 locale, so I doubt there’s a problem here.
+            Some(CStr::from_ptr(error).to_string_lossy().into_owned())
+            // FIXME?: Since we do a copy of the error string above, maybe we should call dlerror
+            // again to let libdl know it may free its copy of the string now?
         }
-        // You can’t even rely on error string being static here; call to subsequent dlerror may
-        // invalidate or overwrite the error message. Why couldn’t they simply give up the
-        // ownership over the message?
-        // TODO: should do locale-aware conversion here. OTOH Rust doesn’t seem to work well
-        // in any system that uses non-utf8 locale, so I doubt there’s a problem here.
-        Err(Some(CStr::from_ptr(error).to_string_lossy().into_owned()))
-        // FIXME?: Since we do a copy of the error string above, maybe we should call dlerror again
-        // to let libdl know it may free its copy of the string now?
     })
 }
 
