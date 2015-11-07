@@ -106,7 +106,7 @@ impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
     }
 }
 
-#[cfg(not(target_os="windows"))]
+#[cfg(not(any(target_os="windows", target_os="macos")))]
 #[test]
 fn libm() {
     let lib = Library::new("libm.so.6").unwrap();

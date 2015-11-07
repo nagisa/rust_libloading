@@ -223,9 +223,21 @@ fn this() {
     Library::this();
 }
 
+#[cfg(all(test,
+          any(target_os="linux",
+          target_os="freebsd",
+          target_os="dragonfly",
+          target_os="bitrig",
+          target_os="netbsd",
+          target_os="openbsd")))]
+const LIBM: &'static str = "libm.so.6";
+
+#[cfg(all(test, target_os="macos"))]
+const LIBM: &'static str = "libm.dylib";
+
 #[test]
 fn new_libm() {
-    Library::new("libm.so.6").unwrap();
+    Library::new(LIBM).unwrap();
 }
 
 #[test]
@@ -235,7 +247,7 @@ fn new_m() {
 
 #[test]
 fn libm_ceil() {
-    let lib = Library::new("libm.so.6").unwrap();
+    let lib = Library::new(LIBM).unwrap();
     let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
         lib.get(&CString::new("ceil").unwrap()).unwrap()
     };
