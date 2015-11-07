@@ -6,7 +6,7 @@ extern crate kernel32;
 
 use util::{CheckedCStr, CStringAsRef};
 
-use std::ffi::{CStr, OsStr, OsString};
+use std::ffi::{OsStr, OsString};
 use std::marker;
 use std::mem;
 use std::ptr;
@@ -184,7 +184,7 @@ where F: FnOnce() -> Option<T> {
 fn works_GetLastError() {
     let that = Library::new("kernel32.dll").unwrap();
     unsafe {
-        that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError").unwrap()).unwrap();
+        that.get::<*mut usize>(b"GetLastError").unwrap();
     }
 }
 
@@ -192,7 +192,7 @@ fn works_GetLastError() {
 fn works_GetLastError0() {
     let that = Library::new("kernel32.dll").unwrap();
     unsafe {
-        that.get::<*mut usize>(&::std::ffi::CString::new("GetLastError\0").unwrap()).unwrap();
+        that.get::<*mut usize>(b"GetLastError\0").unwrap();
     }
 }
 
