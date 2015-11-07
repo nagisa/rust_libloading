@@ -1,6 +1,0 @@
-# libloading
-
-A safer binding to platform’s dynamic library loading utilities.
-
-Note that bindings are currently quite barebones (i.e. allows opening library and load a symbol
-only) and should get expanded over time.

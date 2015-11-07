@@ -1,0 +1,11 @@
+# libloading [![Travis CI][tcii]][tci] [![Appveyor CI][acii]][aci]
+
+[tcii]: https://travis-ci.org/nagisa/rust_libloading.svg?branch=master
+[tci]: https://travis-ci.org/nagisa/rust_libloading
+[acii]: https://ci.appveyor.com/api/projects/status/cnncnu58qcxb1ikf/branch/master?svg=true
+[aci]: https://ci.appveyor.com/project/nagisa/rust-libloading
+
+A safer binding to platform’s dynamic library loading utilities.
+
+Note that bindings are currently quite barebones (i.e. allows opening library and load a symbol
+only) and should get expanded over time.
