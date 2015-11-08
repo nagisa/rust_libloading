@@ -1,8 +1,7 @@
 //! A memory-safer wrapper around system dynamic library primitives.
 //!
 //! With this library you can load [dynamic libraries](struct.Library.html) and retrieve
-//! [symbols](struct.Symbol.html). This library ensures you won’t somehow close the library before
-//! you’re done using the symbol.
+//! [symbols](struct.Symbol.html) from the loaded libraries.
 //!
 //! Less safe platform specific bindings are available in the [`os::platform`](os/index.html)
 //! modules.
@@ -29,19 +28,6 @@ mod util;
 pub type Result<T> = ::std::io::Result<T>;
 
 /// A dynamically loaded library.
-///
-/// Only the behaviour that can be reasonably consistently implemented across platforms is provided
-/// here.
-///
-/// # Examples
-///
-/// ```ignore
-/// let lib = Library::new("libm.so.6").unwrap();
-/// let ceil: Symbol<extern fn(f64) -> f64> = unsafe {
-///     lib.get(&CString::new("ceil").unwrap()).unwrap()
-/// };
-/// assert_eq!(ceil(0.4), 1.0);
-/// ```
 pub struct Library(imp::Library);
 
 impl Library {
@@ -74,8 +60,8 @@ impl Library {
     ///
     /// # Unsafety
     ///
-    /// Symbol of arbitrary requested type is returned. Using symbol of a wrong type is not memory
-    /// safe.
+    /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
+    /// memory safe.
     ///
     /// # Examples
     ///
@@ -107,7 +93,7 @@ impl Library {
 /// Symbol from a library.
 ///
 /// This type is a safeguard against using dynamically loaded symbols after a `Library` is
-/// unloaded. Primary way to create an instance of a `Symbol` is via `Library::get`.
+/// unloaded. Primary method to create an instance of a `Symbol` is via `Library::get`.
 ///
 /// Due to implementation of the `Deref` trait, an instance of `Symbol` may be used as if it was a
 /// function or variable directly, without taking care to “extract” function or variable manually
