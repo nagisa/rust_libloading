@@ -111,20 +111,15 @@ impl Library {
     /// Get a symbol by name.
     ///
     /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work. Symbol may or may not be terminated with a null byte (see “Premature
-    /// optimisation”).
-    ///
-    /// # Unsafety
-    ///
-    /// The pointer to a symbol of arbitrary type or kind is returned. Requesting for function
-    /// pointer while the symbol is not one and vice versa is not memory safe.
-    ///
-    /// The return value does not ensure the symbol does not outlive the library.
-    ///
-    /// # Premature optimisation
+    /// will not work.
     ///
     /// You may append a null byte at the end of the byte string to avoid string allocation in some
     /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    ///
+    /// # Unsafety
+    ///
+    /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
+    /// memory safe.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         let symbol = try!(CowCString::from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null

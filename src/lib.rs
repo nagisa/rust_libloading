@@ -49,6 +49,17 @@ impl Library {
     ///
     /// Locations where library is searched for is platform specific and can’t be adjusted
     /// portably.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // on Unix
+    /// let lib = Library::new("libm.so.6").unwrap();
+    /// // on OS X
+    /// let lib = Library::new("libm.dylib").unwrap();
+    /// // on Windows
+    /// let lib = Library::new("msvcrt.dll").unwrap();
+    /// ```
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library> {
         imp::Library::new(filename).map(Library)
     }
@@ -56,18 +67,15 @@ impl Library {
     /// Get a symbol by name.
     ///
     /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work. Symbol may or may not be terminated with a null byte (see “Premature
-    /// optimisation”).
-    ///
-    /// # Unsafety
-    ///
-    /// The pointer to a symbol of arbitrary type or kind is returned. Requesting for function
-    /// pointer while the symbol is not one and vice versa is not memory safe.
-    ///
-    /// # Premature optimisation
+    /// will not work.
     ///
     /// You may append a null byte at the end of the byte string to avoid string allocation in some
     /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    ///
+    /// # Unsafety
+    ///
+    /// Symbol of arbitrary requested type is returned. Using symbol of a wrong type is not memory
+    /// safe.
     ///
     /// # Examples
     ///
@@ -98,8 +106,22 @@ impl Library {
 
 /// Symbol from a library.
 ///
-/// This type is a safeguard against using dynamically loaded symbols after `Library` is dropped.
-/// Primary way to create an instance of a `Symbol` is via `Library::get`.
+/// This type is a safeguard against using dynamically loaded symbols after a `Library` is
+/// unloaded. Primary way to create an instance of a `Symbol` is via `Library::get`.
+///
+/// Due to implementation of the `Deref` trait, an instance of `Symbol` may be used as if it was a
+/// function or variable directly, without taking care to “extract” function or variable manually
+/// most of the time.
+///
+/// # Examples
+///
+/// ```ignore
+/// let sin: Symbol<extern fn(f64) -> f64> = unsafe {
+///     lib.get(b"sin\0").unwrap()
+/// };
+/// let sine0 = sin(0);
+/// assert!(sine0 < 0.1E-10);
+/// ```
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
