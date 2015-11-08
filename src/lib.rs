@@ -26,7 +26,7 @@ use self::os::windows as imp;
 pub mod os;
 mod util;
 
-pub type Result<T> = ::std::result::Result<T, String>;
+pub type Result<T> = ::std::io::Result<T>;
 
 /// A dynamically loaded library.
 ///

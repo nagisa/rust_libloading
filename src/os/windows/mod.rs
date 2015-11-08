@@ -166,16 +166,14 @@ impl Drop for ErrorModeGuard {
     }
 }
 
-
-fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<String>>
+fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<::std::io::Error>>
 where F: FnOnce() -> Option<T> {
     closure().ok_or_else(|| {
         let error = unsafe { kernel32::GetLastError() };
         if error == 0 {
             None
         } else {
-            // TODO: Possibly use FormatMessage (lots of work here)
-            Some(format!("Error {}", error))
+            Some(::std::io::Error::from_raw_os_error(error))
         }
     })
 }

@@ -3,12 +3,13 @@
 /// This module should eventually be expanded with more UNIX-specific functionality in the future.
 use util::{CowCString, CStringAsRef};
 
-use std::ffi::{CStr, CString, OsStr};
+use std::ffi::{CStr, OsStr};
 use std::marker;
 use std::sync::Mutex;
 use std::os::raw;
 use std::ptr;
 use std::mem;
+use std::io;
 use std::os::unix::ffi::OsStrExt;
 
 // libdl is retarded.
@@ -16,7 +17,7 @@ use std::os::unix::ffi::OsStrExt;
 // First of all, whole error handling scheme in libdl is done via setting and querying some global
 // state, therefore it is not safe to use libdl in MT-capable environment at all. Only in POSIX
 // 2008+TC1 a thread-local state was allowed, which for our purposes is way too late.
-fn with_dlerror<T, F>(closure: F) -> Result<T, Option<String>>
+fn with_dlerror<T, F>(closure: F) -> Result<T, Option<io::Error>>
 where F: FnOnce() -> Option<T> {
     // We will guard all uses of libdl library with our own mutex. This makes libdl
     // safe to use in MT programs provided the only way a program uses libdl is via this library.
@@ -43,7 +44,8 @@ where F: FnOnce() -> Option<T> {
             // ownership over the message?
             // TODO: should do locale-aware conversion here. OTOH Rust doesn’t seem to work well in
             // any system that uses non-utf8 locale, so I doubt there’s a problem here.
-            Some(CStr::from_ptr(error).to_string_lossy().into_owned())
+            let message = CStr::from_ptr(error).to_string_lossy().into_owned();
+            Some(io::Error::new(io::ErrorKind::Other, message))
             // FIXME?: Since we do a copy of the error string above, maybe we should call dlerror
             // again to let libdl know it may free its copy of the string now?
         }
@@ -59,17 +61,16 @@ impl Library {
     fn open<P>(filename: Option<P>, flags: raw::c_int) -> ::Result<Library>
     where P: AsRef<OsStr> {
         let filename = match filename {
-            None => Ok(None),
-            Some(f) => CString::new(f.as_ref().as_bytes()).map(Some),
-        };
-        let ptr = match filename {
-            Err(_) => return Err("library name contains null bytes".into()),
-            Ok(None) => ptr::null(),
-            Ok(Some(ref f)) => f.as_ptr(),
+            None => None,
+            Some(ref f) => Some(try!(CowCString::from_bytes(f.as_ref().as_bytes()))),
         };
         with_dlerror(move || {
             let result = unsafe {
-                let r = dlopen(ptr, flags);
+                let r = dlopen(match filename {
+                    None => ptr::null(),
+                    Some(ref f) => f.cstring_ref()
+                }, flags);
+                // ensure filename livess until dlopen completes
                 ::std::mem::drop(filename);
                 r
             };
@@ -148,7 +149,7 @@ impl Library {
                 pointer: ptr::null_mut(),
                 pd: marker::PhantomData
             }),
-            Err(e) => Err(e.unwrap()),
+            Err(Some(e)) => Err(e),
             Ok(x) => Ok(x)
         }
     }

@@ -10,9 +10,9 @@ impl From<NulError> for NullError {
     }
 }
 
-impl From<NullError> for String {
-    fn from(e: NullError) -> String {
-        format!("{}", e)
+impl From<NullError> for ::std::io::Error {
+    fn from(e: NullError) -> ::std::io::Error {
+        ::std::io::Error::new(::std::io::ErrorKind::Other, format!("{}", e))
     }
 }
 
