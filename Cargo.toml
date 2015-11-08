@@ -3,6 +3,11 @@ name = "libloading"
 version = "0.2.0"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 build = "build.rs"
+description = "A safer binding to platform’s dynamic library loading utilities"
+keywords = ["dlopen", "load", "shared", "dylib"]
+license = "ISC"
+repository = "https://github.com/nagisa/rust_libloading/"
+documentation = "https://nagisa.github.io/rust_libloading/"
 
 [dependencies]
 winapi = "0.2"
