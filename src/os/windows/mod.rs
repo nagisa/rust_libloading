@@ -171,7 +171,7 @@ where F: FnOnce() -> Option<T> {
         if error == 0 {
             None
         } else {
-            Some(::std::io::Error::from_raw_os_error(error))
+            Some(::std::io::Error::from_raw_os_error(error as i32))
         }
     })
 }
