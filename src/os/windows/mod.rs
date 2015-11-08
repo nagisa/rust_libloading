@@ -4,7 +4,7 @@
 extern crate winapi;
 extern crate kernel32;
 
-use util::{CheckedCStr, CStringAsRef};
+use util::{CowCString, CStringAsRef};
 
 use std::ffi::{OsStr, OsString};
 use std::marker;
@@ -67,7 +67,7 @@ impl Library {
     /// You may append a null byte at the end of the byte string to avoid string allocation in some
     /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
-        let symbol = try!(CheckedCStr::from_bytes(symbol));
+        let symbol = try!(CowCString::from_bytes(symbol));
         with_get_last_error(|| {
             let symbol = kernel32::GetProcAddress(self.0, symbol.cstring_ref());
             if symbol.is_null() {

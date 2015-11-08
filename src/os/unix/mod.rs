@@ -1,7 +1,7 @@
 /// UNIX implementation of dynamic library loading.
 ///
 /// This module should eventually be expanded with more UNIX-specific functionality in the future.
-use util::{CheckedCStr, CStringAsRef};
+use util::{CowCString, CStringAsRef};
 
 use std::ffi::{CStr, CString, OsStr};
 use std::marker;
@@ -125,7 +125,7 @@ impl Library {
     /// You may append a null byte at the end of the byte string to avoid string allocation in some
     /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
-        let symbol = try!(CheckedCStr::from_bytes(symbol));
+        let symbol = try!(CowCString::from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.

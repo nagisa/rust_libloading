@@ -26,22 +26,19 @@ impl ::std::fmt::Display for NullError {
     }
 }
 
-pub struct CheckedCStr<'a> {
-    s: Option<CString>,
-    p: Option<&'a raw::c_char>
+pub enum CowCString<'a> {
+    Owned(CString),
+    Ref(&'a raw::c_char)
 }
 
-impl<'a> CheckedCStr<'a> {
+impl<'a> CowCString<'a> {
     /// Checks for last byte and avoids alocatting if its zero.
     ///
     /// Non-last null bytes still result in an error.
-    pub fn from_bytes(slice: &'a [u8]) -> Result<CheckedCStr<'a>, NullError> {
+    pub fn from_bytes(slice: &'a [u8]) -> Result<CowCString<'a>, NullError> {
         Ok(if slice.len() == 0 {
             static ZERO: raw::c_char = 0;
-            CheckedCStr {
-                s: None,
-                p: Some(&ZERO)
-            }
+            CowCString::Ref(&ZERO)
         } else if let Some(&0) = slice.last() {
             // check for inner nulls
             for (c, i) in slice.iter().zip(0..slice.len()-2) {
@@ -49,15 +46,9 @@ impl<'a> CheckedCStr<'a> {
                     return Err(NullError(i));
                 }
             }
-            CheckedCStr {
-                s: None,
-                p: Some(unsafe { ::std::mem::transmute(slice.get_unchecked(0)) }),
-            }
+            CowCString::Ref(unsafe {::std::mem::transmute(slice.get_unchecked(0))})
         } else {
-            CheckedCStr {
-                s: Some(try!(CString::new(slice))),
-                p: None
-            }
+            CowCString::Owned(try!(CString::new(slice)))
         })
     }
 }
@@ -72,14 +63,11 @@ impl CStringAsRef for CString {
     }
 }
 
-impl<'a> CStringAsRef for CheckedCStr<'a> {
-        fn cstring_ref(&self) -> &raw::c_char {
-        if let Some(ref p) = self.p {
-            *p
-        } else if let Some(ref s) = self.s {
-            s.cstring_ref()
-        } else {
-            unreachable!()
+impl<'a> CStringAsRef for CowCString<'a> {
+    fn cstring_ref(&self) -> &raw::c_char {
+        match self {
+            &CowCString::Ref(r) => r,
+            &CowCString::Owned(ref o) => o.cstring_ref()
         }
     }
 }
