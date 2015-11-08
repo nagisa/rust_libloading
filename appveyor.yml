@@ -14,8 +14,5 @@ install:
   - ps: $env:PATH="$env:PATH;C:\rust\bin"
   - rustc -vV
   - cargo -vV
-build_script:
-  - cargo build
-  - cargo package
 test_script:
   - cargo test
