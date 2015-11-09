@@ -26,9 +26,7 @@ impl Library {
     /// Corresponds to `LoadLibraryW(filename)`.
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
-        let mut wide_filename: Vec<u16> = filename.as_ref().encode_wide().collect();
-        wide_filename.push(0);
-        wide_filename.shrink_to_fit();
+        let mut wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
         let ret = with_get_last_error(|| {
