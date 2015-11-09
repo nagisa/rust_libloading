@@ -120,7 +120,8 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     type Target = T;
     fn deref(&self) -> &T {
         unsafe {
-            &*(&self.pointer as *const _ as *const T)
+            // Additional reference level for a dereference on `deref` return value.
+            ::std::mem::transmute(&self.pointer)
         }
     }
 }
