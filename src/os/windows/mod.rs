@@ -176,18 +176,26 @@ where F: FnOnce() -> Option<T> {
 }
 
 #[test]
-fn works_GetLastError() {
-    let that = Library::new("kernel32.dll").unwrap();
+fn works_getlasterror() {
+    let lib = Library::new("kernel32.dll").unwrap();
+    let gle: Symbol<unsafe extern "system" fn() -> winapi::DWORD> = unsafe {
+        lib.get(b"GetLastError").unwrap()
+    };
     unsafe {
-        that.get::<*mut usize>(b"GetLastError").unwrap();
+        kernel32::SetLastError(42);
+        assert_eq!(kernel32::GetLastError(), gle())
     }
 }
 
 #[test]
-fn works_GetLastError0() {
-    let that = Library::new("kernel32.dll").unwrap();
+fn works_getlasterror0() {
+    let lib = Library::new("kernel32.dll").unwrap();
+    let gle: Symbol<unsafe extern "system" fn() -> winapi::DWORD> = unsafe {
+        lib.get(b"GetLastError\0").unwrap()
+    };
     unsafe {
-        that.get::<*mut usize>(b"GetLastError\0").unwrap();
+        kernel32::SetLastError(42);
+        assert_eq!(kernel32::GetLastError(), gle())
     }
 }
 
