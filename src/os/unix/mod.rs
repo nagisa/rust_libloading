@@ -4,13 +4,14 @@
 use util::{CowCString, CStringAsRef};
 
 use std::ffi::{CStr, OsStr};
-use std::marker;
-use std::sync::Mutex;
+use std::{fmt, io, marker, mem, ptr};
 use std::os::raw;
-use std::ptr;
-use std::mem;
-use std::io;
 use std::os::unix::ffi::OsStrExt;
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref DLERROR_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 // libdl is retarded.
 //
@@ -21,10 +22,7 @@ fn with_dlerror<T, F>(closure: F) -> Result<T, Option<io::Error>>
 where F: FnOnce() -> Option<T> {
     // We will guard all uses of libdl library with our own mutex. This makes libdl
     // safe to use in MT programs provided the only way a program uses libdl is via this library.
-    lazy_static! {
-        static ref MUTEX: Mutex<()> = Mutex::new(());
-    }
-    let _lock = MUTEX.lock();
+    let _lock = DLERROR_MUTEX.lock();
     // While we could could call libdl here to clear the previous error value, only the dlsym
     // depends on it being cleared beforehand and only in some cases too. We will instead clear the
     // error inside the dlsym binding instead.
@@ -46,8 +44,8 @@ where F: FnOnce() -> Option<T> {
             // any system that uses non-utf8 locale, so I doubt there’s a problem here.
             let message = CStr::from_ptr(error).to_string_lossy().into_owned();
             Some(io::Error::new(io::ErrorKind::Other, message))
-            // FIXME?: Since we do a copy of the error string above, maybe we should call dlerror
-            // again to let libdl know it may free its copy of the string now?
+            // Since we do a copy of the error string above, maybe we should call dlerror again to
+            // let libdl know it may free its copy of the string now?
         }
     })
 }
@@ -71,7 +69,7 @@ impl Library {
                     Some(ref f) => f.cstring_ref()
                 }, flags);
                 // ensure filename livess until dlopen completes
-                ::std::mem::drop(filename);
+                drop(filename);
                 r
             };
             if result.is_null() {
@@ -160,8 +158,8 @@ impl Drop for Library {
     }
 }
 
-impl ::std::fmt::Debug for Library {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl fmt::Debug for Library {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&format!("Library@{:p}", self.handle))
     }
 }
@@ -180,13 +178,13 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     fn deref(&self) -> &T {
         unsafe {
             // Additional reference level for a dereference on `deref` return value.
-            ::std::mem::transmute(&self.pointer)
+            mem::transmute(&self.pointer)
         }
     }
 }
 
-impl<T> ::std::fmt::Debug for Symbol<T> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl<T> fmt::Debug for Symbol<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         unsafe {
             let mut info: DlInfo = mem::uninitialized();
             if dladdr(self.pointer, &mut info) != 0 {

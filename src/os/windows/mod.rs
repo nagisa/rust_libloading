@@ -7,11 +7,9 @@ extern crate kernel32;
 use util::{CowCString, CStringAsRef};
 
 use std::ffi::{OsStr, OsString};
-use std::marker;
-use std::mem;
-use std::ptr;
-use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
+use std::{fmt, io, marker, mem, ptr};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 
 
 /// A platform-specific equivalent of the cross-platform `Library`.
@@ -43,7 +41,7 @@ impl Library {
         ));
 
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
-                             // inside the closure by mistake.
+                             // inside the closure by mistake. See comment inside the closure.
         ret
     }
 
@@ -89,8 +87,8 @@ impl Drop for Library {
     }
 }
 
-impl ::std::fmt::Debug for Library {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl fmt::Debug for Library {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         unsafe {
             let mut buf: [winapi::WCHAR; 1024] = mem::uninitialized();
             let len = kernel32::GetModuleFileNameW(self.0,
@@ -119,13 +117,13 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     fn deref(&self) -> &T {
         unsafe {
             // Additional reference level for a dereference on `deref` return value.
-            ::std::mem::transmute(&self.pointer)
+            mem::transmute(&self.pointer)
         }
     }
 }
 
-impl<T> ::std::fmt::Debug for Symbol<T> {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+impl<T> fmt::Debug for Symbol<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&format!("Symbol@{:p}", self.pointer))
     }
 }
@@ -163,14 +161,14 @@ impl Drop for ErrorModeGuard {
     }
 }
 
-fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<::std::io::Error>>
+fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<io::Error>>
 where F: FnOnce() -> Option<T> {
     closure().ok_or_else(|| {
         let error = unsafe { kernel32::GetLastError() };
         if error == 0 {
             None
         } else {
-            Some(::std::io::Error::from_raw_os_error(error as i32))
+            Some(io::Error::from_raw_os_error(error as i32))
         }
     })
 }
