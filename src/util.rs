@@ -65,9 +65,9 @@ impl CStringAsRef for CString {
 
 impl<'a> CStringAsRef for CowCString<'a> {
     fn cstring_ref(&self) -> &raw::c_char {
-        match self {
-            &CowCString::Ref(r) => r,
-            &CowCString::Owned(ref o) => o.cstring_ref()
+        match *self {
+            CowCString::Ref(r) => r,
+            CowCString::Owned(ref o) => o.cstring_ref()
         }
     }
 }
