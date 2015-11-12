@@ -8,6 +8,13 @@
 use std::ffi::OsStr;
 use std::marker;
 
+#[cfg(any(target_os="linux",
+          target_os="macos",
+          target_os="freebsd",
+          target_os="dragonfly",
+          target_os="bitrig",
+          target_os="netbsd",
+          target_os="openbsd"))]
 #[macro_use]
 extern crate lazy_static;
 
