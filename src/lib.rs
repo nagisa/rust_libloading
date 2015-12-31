@@ -8,25 +8,13 @@
 use std::ffi::OsStr;
 use std::marker;
 
-#[cfg(any(target_os="linux",
-          target_os="macos",
-          target_os="freebsd",
-          target_os="dragonfly",
-          target_os="bitrig",
-          target_os="netbsd",
-          target_os="openbsd"))]
+#[cfg(unix)]
 #[macro_use]
 extern crate lazy_static;
 
-#[cfg(any(target_os="linux",
-          target_os="macos",
-          target_os="freebsd",
-          target_os="dragonfly",
-          target_os="bitrig",
-          target_os="netbsd",
-          target_os="openbsd"))]
+#[cfg(unix)]
 use self::os::unix as imp;
-#[cfg(target_os="windows")]
+#[cfg(windows)]
 use self::os::windows as imp;
 
 pub mod os;
@@ -127,7 +115,7 @@ impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
     }
 }
 
-#[cfg(not(any(target_os="windows", target_os="macos")))]
+#[cfg(all(unix, not(any(target_os="macos", target_os="ios", target_os="android"))))]
 #[test]
 fn libm() {
     let lib = Library::new("libm.so.6").unwrap();

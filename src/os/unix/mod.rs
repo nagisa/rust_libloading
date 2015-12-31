@@ -231,15 +231,16 @@ fn this() {
 }
 
 #[cfg(all(test,
-          any(target_os="linux",
-          target_os="freebsd",
-          target_os="dragonfly",
-          target_os="bitrig",
-          target_os="netbsd",
-          target_os="openbsd")))]
+          not(any(target_os="macos",
+                  target_os="ios",
+                  target_os="android"))))]
 const LIBM: &'static str = "libm.so.6";
 
-#[cfg(all(test, target_os="macos"))]
+#[cfg(all(test, target_os="android"))]
+const LIBM: &'static str = "libm.so";
+
+#[cfg(all(test, any(target_os="macos",
+                    target_os="ios")))]
 const LIBM: &'static str = "libm.dylib";
 
 #[test]
