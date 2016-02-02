@@ -6,6 +6,7 @@
 //! Less safe platform specific bindings are available in the [`os::platform`](os/index.html)
 //! modules.
 use std::ffi::OsStr;
+use std::fmt;
 use std::marker;
 
 #[cfg(unix)]
@@ -85,6 +86,12 @@ impl Library {
     }
 }
 
+impl fmt::Debug for Library {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// Symbol from a library.
 ///
 /// This type is a safeguard against using dynamically loaded symbols after a `Library` is
@@ -112,6 +119,12 @@ impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
     type Target = T;
     fn deref(&self) -> &T {
         ::std::ops::Deref::deref(&self.inner)
+    }
+}
+
+impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.inner.fmt(f)
     }
 }
 
