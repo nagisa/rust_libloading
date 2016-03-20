@@ -34,7 +34,8 @@ impl Library {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use ::libloading::Library;
     /// // on Unix
     /// let lib = Library::new("libm.so.6").unwrap();
     /// // on OS X
@@ -63,15 +64,19 @@ impl Library {
     ///
     /// Simple function:
     ///
-    /// ```ignore
-    /// let sin: Symbol<extern fn(f64) -> f64> = unsafe {
+    /// ```no_run
+    /// # use ::libloading::{ Library, Symbol };
+    /// # let lib = Library::new("libm.so.6").unwrap();
+    /// let sin: Symbol<unsafe extern fn(f64) -> f64> = unsafe {
     ///     lib.get(b"sin\0").unwrap()
     /// };
     /// ```
     ///
     /// A static or TLS variable:
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use ::libloading::{ Library, Symbol };
+    /// # let lib = Library::new("libm.so.6").unwrap();
     /// let errno: Symbol<*mut u32> = unsafe {
     ///     lib.get(b"errno\0").unwrap()
     /// };
@@ -103,12 +108,18 @@ impl fmt::Debug for Library {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// let sin: Symbol<extern fn(f64) -> f64> = unsafe {
+/// ```
+/// # #[cfg(all(unix, not(any(target_os="macos", target_os="ios", target_os="android"))))]
+/// # fn main() {
+/// #     use ::libloading::{ Library, Symbol };
+/// #     let lib = Library::new("libm.so.6").unwrap();
+/// let sin: Symbol<unsafe extern fn(f64) -> f64> = unsafe {
 ///     lib.get(b"sin\0").unwrap()
 /// };
-/// let sine0 = sin(0);
+///
+/// let sine0 = unsafe { sin(0f64) };
 /// assert!(sine0 < 0.1E-10);
+/// # }
 /// ```
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
@@ -132,10 +143,10 @@ impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
 #[test]
 fn libm() {
     let lib = Library::new("libm.so.6").unwrap();
-    let sin: Symbol<extern fn(f64) -> f64> = unsafe {
+    let sin: Symbol<unsafe extern fn(f64) -> f64> = unsafe {
         lib.get(b"sin").unwrap()
     };
-    assert!(sin(::std::f64::INFINITY).is_nan());
+    assert!(unsafe { sin(::std::f64::INFINITY) }.is_nan());
     let errno: Symbol<*mut u32> = unsafe {
         lib.get(b"errno").unwrap()
     };
