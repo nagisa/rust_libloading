@@ -1,6 +1,6 @@
 [package]
 name = "libloading"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 build = "build.rs"
 description = "A safer binding to platform’s dynamic library loading utilities"
@@ -10,9 +10,11 @@ repository = "https://github.com/nagisa/rust_libloading/"
 documentation = "https://nagisa.github.io/rust_libloading/"
 
 [dependencies]
+lazy_static = "0.2"
+
+[target.'cfg(windows)'.dependencies]
 winapi = "0.2"
 kernel32-sys = "0.2"
-lazy_static = "0.2"
 
 [build-dependencies]
 target_build_utils = "0.1"
