@@ -107,6 +107,7 @@ impl fmt::Debug for Library {
 ///
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
 /// `Symbol` does not outlive `Library` it comes from.
+#[derive(Clone)]
 pub struct Symbol<T> {
     pointer: winapi::FARPROC,
     pd: marker::PhantomData<T>

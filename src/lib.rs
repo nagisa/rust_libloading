@@ -118,6 +118,7 @@ impl fmt::Debug for Library {
 /// let sine0 = unsafe { sin(0f64) };
 /// assert!(sine0 < 0.1E-10);
 /// ```
+#[derive(Clone)]
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
