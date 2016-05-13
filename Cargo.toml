@@ -7,16 +7,9 @@ description = "A shared library loader which is convienient and realistic about 
 keywords = [
     "dlopen",
     "dynamic",
-    "libloading",
-    "lib_loading",
     "library",
-    "load",
     "shared",
-    "sharedlib",
-    "shared_lib",
-    "lib",
-    "dylib",
-    "dynlib"
+    "lib"
 ]
 license = "ISC"
 repository = "https://github.com/Tyleo/shared_lib.git"
