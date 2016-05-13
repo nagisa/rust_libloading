@@ -55,14 +55,14 @@ impl Library {
     ///
     /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
     /// memory safe.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<&T> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<*mut T> {
         let symbol = try!(CowCString::from_bytes(symbol));
         with_get_last_error(|| {
             let symbol = kernel32::GetProcAddress(self.0, symbol.cstring_ref());
             if symbol.is_null() {
                 None
             } else {
-                Some(mem::transmute(&symbol))
+                Some(mem::transmute(symbol))
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("GetProcAddress failed but GetLastError did not report the error")
@@ -145,8 +145,8 @@ where F: FnOnce() -> Option<T> {
 #[test]
 fn works_getlasterror() {
     let lib = Library::new("kernel32.dll").unwrap();
-    let gle: &extern "system" fn() -> winapi::DWORD = unsafe {
-        lib.get(b"GetLastError").unwrap()
+    let gle: extern "system" fn() -> winapi::DWORD = unsafe {
+        mem::transmute(lib.get::<u8>(b"GetLastError").unwrap())
     };
     unsafe {
         kernel32::SetLastError(42);
@@ -157,8 +157,8 @@ fn works_getlasterror() {
 #[test]
 fn works_getlasterror0() {
     let lib = Library::new("kernel32.dll").unwrap();
-    let gle: &extern "system" fn() -> winapi::DWORD = unsafe {
-        lib.get(b"GetLastError\0").unwrap()
+    let gle: extern "system" fn() -> winapi::DWORD = unsafe {
+        mem::transmute(lib.get::<u8>(b"GetLastError\0").unwrap())
     };
     unsafe {
         kernel32::SetLastError(42);

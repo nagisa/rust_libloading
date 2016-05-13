@@ -77,7 +77,7 @@ impl Library {
     ///     lib.get(b"errno\0").unwrap()
     /// };
     /// ```
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<&T> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<*mut T> {
         self.0.get(symbol)
     }
 }
