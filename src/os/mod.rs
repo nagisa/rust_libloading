@@ -1,11 +1,13 @@
 #[cfg(unix)]
+#[macro_use]
 pub mod unix;
 
 #[cfg(windows)]
 pub mod windows;
 
-#[cfg(unix)]
-pub use os::unix::*;
+pub mod util;
 
 #[cfg(windows)]
-pub use os::windows::*;
+pub mod uses {
+    pub use os::windows::Lib;
+}
