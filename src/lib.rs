@@ -31,7 +31,7 @@ impl Library {
     /// # Examples
     ///
     /// ```no_run
-    /// # use shared_lib::Library;
+    /// # use sharedlib::Library;
     /// // on Unix
     /// let lib = Library::new("libm.so.6").unwrap();
     /// // on OS X
@@ -61,7 +61,7 @@ impl Library {
     /// Simple function:
     ///
     /// ```no_run
-    /// # use shared_lib::Library;
+    /// # use sharedlib::Library;
     /// # let lib = Library::new("libm.so.6").unwrap();
     /// let sin: &extern fn(f64) -> f64 = unsafe {
     ///     lib.get(b"sin\0").unwrap()
@@ -71,7 +71,7 @@ impl Library {
     /// A static or TLS variable:
     ///
     /// ```no_run
-    /// # use shared_lib::Library;
+    /// # use sharedlib::Library;
     /// # let lib = Library::new("libm.so.6").unwrap();
     /// let errno: &*mut u32 = unsafe {
     ///     lib.get(b"errno\0").unwrap()

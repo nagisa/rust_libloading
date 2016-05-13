@@ -1,13 +1,27 @@
 [package]
-name = "shared_lib"
-version = "0.2.3"
-authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
+name = "sharedlib"
+version = "0.2.0"
+authors = ["Simonas Kazlauskas <git@kazlauskas.me>", "Tyler Wolf Leonhardt <tyler.wolf.leonhardt@gmail.com>"]
 build = "build.rs"
-description = "A safer binding to platform’s dynamic library loading utilities"
-keywords = ["dlopen", "load", "shared", "dylib"]
+description = "A shared library loader which is convienient and realistic about safety guarantees."
+keywords = [
+    "dlopen",
+    "dynamic",
+    "libloading",
+    "lib_loading",
+    "library",
+    "load",
+    "shared",
+    "sharedlib",
+    "shared_lib",
+    "lib",
+    "dylib",
+    "dynlib"
+]
 license = "ISC"
-repository = "https://github.com/nagisa/rust_libloading/"
-documentation = "https://nagisa.github.io/rust_libloading/"
+repository = "https://github.com/Tyleo/shared_lib.git"
+# TODO: Create documentation site.
+# documentation = "https://tyleo.github.io/shared_lib/"
 
 [dependencies]
 winapi = "0.2"

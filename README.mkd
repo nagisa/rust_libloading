@@ -1,24 +1,3 @@
-# libloading [![Travis CI][tcii]][tci] [![Appveyor CI][acii]][aci]
+# sharedlib
 
-[tcii]: https://travis-ci.org/nagisa/rust_libloading.svg?branch=master
-[tci]: https://travis-ci.org/nagisa/rust_libloading
-[acii]: https://ci.appveyor.com/api/projects/status/cnncnu58qcxb1ikf/branch/master?svg=true
-[aci]: https://ci.appveyor.com/project/nagisa/rust-libloading
-
-**NOTE** bindings are currently quite barebones (i.e. only allow opening a library and loading a
-symbol from it) and should get expanded over time.
-
-The documentation can be found [here][docs].
-
-[docs]: http://nagisa.github.io/rust_libloading/libloading/index.html
-
-This library is a safer (compared to the deprecated `dynamic_lib`) binding to platform’s dynamic
-library loading utilities. The most important safety guarantee by this library is prevention of
-dangling-`Symbol`s that may occur after a `Library` is unloaded. Due to several Rust features used
-in the API, these guarantees have [no usability cost][ccost].
-
-[ccost]: http://nagisa.github.io/rust_libloading/libloading/struct.Symbol.html#examples
-
-Note, that this library is not a drop-in replacement for the deprecated `dynamic_lib`. Many
-dubious APIs (notably, library search path modification) were prunned and string arguments
-take types that match conventions and system APIs better.
+This project has been forked from rust_libloading. While rust_libloading provides a useful interface for loading shared libraries, it is inconvienient and provides incorrect safety gaurantees. This fork seeks to correct those gurantees by properly marking unsafe regions and by not requiring clients to transmute symbols.
