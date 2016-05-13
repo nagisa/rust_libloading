@@ -7,16 +7,12 @@
 //! modules.
 use std::ffi::OsStr;
 use std::fmt;
-use std::marker;
 
 #[cfg(unix)]
 #[macro_use]
 extern crate lazy_static;
 
-#[cfg(unix)]
-use self::os::unix as imp;
-#[cfg(windows)]
-use self::os::windows as imp;
+use self::os as imp;
 
 pub mod os;
 mod util;
@@ -35,7 +31,7 @@ impl Library {
     /// # Examples
     ///
     /// ```no_run
-    /// # use ::libloading::Library;
+    /// # use shared_lib::Library;
     /// // on Unix
     /// let lib = Library::new("libm.so.6").unwrap();
     /// // on OS X
@@ -65,9 +61,9 @@ impl Library {
     /// Simple function:
     ///
     /// ```no_run
-    /// # use ::libloading::{ Library, Symbol };
+    /// # use shared_lib::Library;
     /// # let lib = Library::new("libm.so.6").unwrap();
-    /// let sin: Symbol<unsafe extern fn(f64) -> f64> = unsafe {
+    /// let sin: &extern fn(f64) -> f64 = unsafe {
     ///     lib.get(b"sin\0").unwrap()
     /// };
     /// ```
@@ -75,65 +71,20 @@ impl Library {
     /// A static or TLS variable:
     ///
     /// ```no_run
-    /// # use ::libloading::{ Library, Symbol };
+    /// # use shared_lib::Library;
     /// # let lib = Library::new("libm.so.6").unwrap();
-    /// let errno: Symbol<*mut u32> = unsafe {
+    /// let errno: &*mut u32 = unsafe {
     ///     lib.get(b"errno\0").unwrap()
     /// };
     /// ```
-    pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>> {
-        self.0.get(symbol).map(|from| {
-            Symbol {
-                inner: from,
-                pd: marker::PhantomData
-            }
-        })
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<&T> {
+        self.0.get(symbol)
     }
 }
 
 impl fmt::Debug for Library {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-/// Symbol from a library.
-///
-/// This type is a safeguard against using dynamically loaded symbols after a `Library` is
-/// unloaded. Primary method to create an instance of a `Symbol` is via `Library::get`.
-///
-/// Due to implementation of the `Deref` trait, an instance of `Symbol` may be used as if it was a
-/// function or variable directly, without taking care to “extract” function or variable manually
-/// most of the time.
-///
-/// # Examples
-///
-/// ```no_run
-/// # use ::libloading::{ Library, Symbol };
-/// # let lib = Library::new("libm.so.6").unwrap();
-/// let sin: Symbol<unsafe extern fn(f64) -> f64> = unsafe {
-///     lib.get(b"sin\0").unwrap()
-/// };
-///
-/// let sine0 = unsafe { sin(0f64) };
-/// assert!(sine0 < 0.1E-10);
-/// ```
-#[derive(Clone)]
-pub struct Symbol<'lib, T: 'lib> {
-    inner: imp::Symbol<T>,
-    pd: marker::PhantomData<&'lib T>
-}
-
-impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        ::std::ops::Deref::deref(&self.inner)
-    }
-}
-
-impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.fmt(f)
     }
 }
 

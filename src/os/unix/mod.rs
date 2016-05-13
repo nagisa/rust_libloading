@@ -168,18 +168,16 @@ impl fmt::Debug for Library {
 ///
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
 /// `Symbol` does not outlive `Library` it comes from.
-#[derive(Clone)]
 pub struct Symbol<T> {
     pointer: *mut raw::c_void,
     pd: marker::PhantomData<T>
 }
 
-impl<T> ::std::ops::Deref for Symbol<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        unsafe {
-            // Additional reference level for a dereference on `deref` return value.
-            mem::transmute(&self.pointer)
+impl <T> Clone for Symbol<T> {
+    fn clone(&self) -> Self {
+        Symbol {
+            pointer: self.pointer,
+            pd: self.pd
         }
     }
 }

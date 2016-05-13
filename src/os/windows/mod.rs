@@ -7,10 +7,9 @@ extern crate kernel32;
 use util::{CowCString, CStringAsRef};
 
 use std::ffi::{OsStr, OsString};
-use std::{fmt, io, marker, mem, ptr};
+use std::{fmt, io, mem, ptr};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
-
 
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(winapi::HMODULE);
@@ -22,7 +21,6 @@ impl Library {
     /// portably.
     ///
     /// Corresponds to `LoadLibraryW(filename)`.
-    #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
@@ -57,17 +55,14 @@ impl Library {
     ///
     /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
     /// memory safe.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<&T> {
         let symbol = try!(CowCString::from_bytes(symbol));
         with_get_last_error(|| {
             let symbol = kernel32::GetProcAddress(self.0, symbol.cstring_ref());
             if symbol.is_null() {
                 None
             } else {
-                Some(Symbol {
-                    pointer: symbol,
-                    pd: marker::PhantomData
-                })
+                Some(mem::transmute(&symbol))
             }
         }).map_err(|e| e.unwrap_or_else(||
             panic!("GetProcAddress failed but GetLastError did not report the error")
@@ -102,33 +97,6 @@ impl fmt::Debug for Library {
         }
     }
 }
-
-/// Symbol from a library.
-///
-/// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
-/// `Symbol` does not outlive `Library` it comes from.
-#[derive(Clone)]
-pub struct Symbol<T> {
-    pointer: winapi::FARPROC,
-    pd: marker::PhantomData<T>
-}
-
-impl<T> ::std::ops::Deref for Symbol<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        unsafe {
-            // Additional reference level for a dereference on `deref` return value.
-            mem::transmute(&self.pointer)
-        }
-    }
-}
-
-impl<T> fmt::Debug for Symbol<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("Symbol@{:p}", self.pointer))
-    }
-}
-
 
 static USE_ERRORMODE: AtomicBool = ATOMIC_BOOL_INIT;
 struct ErrorModeGuard(winapi::DWORD);
@@ -177,7 +145,7 @@ where F: FnOnce() -> Option<T> {
 #[test]
 fn works_getlasterror() {
     let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> winapi::DWORD> = unsafe {
+    let gle: &extern "system" fn() -> winapi::DWORD = unsafe {
         lib.get(b"GetLastError").unwrap()
     };
     unsafe {
@@ -189,7 +157,7 @@ fn works_getlasterror() {
 #[test]
 fn works_getlasterror0() {
     let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> winapi::DWORD> = unsafe {
+    let gle: &extern "system" fn() -> winapi::DWORD = unsafe {
         lib.get(b"GetLastError\0").unwrap()
     };
     unsafe {

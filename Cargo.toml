@@ -1,5 +1,5 @@
 [package]
-name = "libloading"
+name = "shared_lib"
 version = "0.2.3"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
 build = "build.rs"
