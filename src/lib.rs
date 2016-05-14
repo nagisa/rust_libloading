@@ -21,6 +21,18 @@ pub mod test;
 
 pub use lib_impl::Lib;
 
+pub use lib_impl::LibTracked;
+
+pub use lib_impl::LibUnsafe;
+
 pub use symbol::data::Data;
 
+pub use symbol::data_tracked::DataTracked;
+
+pub use symbol::data_unsafe::DataUnsafe;
+
 pub use symbol::func::Func;
+
+pub use symbol::func_tracked::FuncTracked;
+
+pub use symbol::func_unsafe::FuncUnsafe;

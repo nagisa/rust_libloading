@@ -5,7 +5,7 @@ pub struct Data<'a, T>
 
 impl <'a, T> Data<'a, T>
     where T: 'a {
-    pub unsafe fn new(data: &'a T) -> Self {
+    pub fn new(data: &'a T) -> Self {
         Data {
             data: data,
         }
