@@ -14,7 +14,13 @@ pub mod lib_impl;
 
 pub mod result;
 
-pub use lib_impl::Lib;
+pub mod symbol;
 
 #[cfg(test)]
 pub mod test;
+
+pub use lib_impl::Lib;
+
+pub use symbol::data::Data;
+
+pub use symbol::func::Func;

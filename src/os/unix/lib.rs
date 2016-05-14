@@ -81,7 +81,7 @@ impl Lib {
     ///
     /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
     /// memory safe.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> R<*mut T> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> R<*const T> {
         let symbol = try!(CowCString::from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
