@@ -8,33 +8,35 @@ extern crate kernel32;
 #[cfg(windows)]
 extern crate winapi;
 
-pub mod os;
+mod os;
 
-pub mod lib_impl;
+mod lib_impl;
 
-pub mod result;
+mod result;
 
-pub mod symbol;
+mod symbol;
 
 #[cfg(test)]
 pub mod test;
 
-pub use lib_impl::lib::Lib;
+pub use lib_impl::Lib;
 
-pub use lib_impl::lib_tracked::LibTracked;
+pub use lib_impl::LibTracked;
 
-pub use lib_impl::lib_unsafe::LibUnsafe;
+pub use lib_impl::LibUnsafe;
 
-pub use symbol::symbol::Symbol;
+pub use result::Result;
 
-pub use symbol::data::Data;
+pub use symbol::Symbol;
 
-pub use symbol::data_tracked::DataTracked;
+pub use symbol::Data;
 
-pub use symbol::data_unsafe::DataUnsafe;
+pub use symbol::DataTracked;
 
-pub use symbol::func::Func;
+pub use symbol::DataUnsafe;
 
-pub use symbol::func_tracked::FuncTracked;
+pub use symbol::Func;
 
-pub use symbol::func_unsafe::FuncUnsafe;
+pub use symbol::FuncTracked;
+
+pub use symbol::FuncUnsafe;

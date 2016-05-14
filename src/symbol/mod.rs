@@ -11,3 +11,17 @@ pub mod func_tracked;
 pub mod func_unsafe;
 
 pub mod symbol;
+
+pub use symbol::data::Data;
+
+pub use symbol::data_tracked::DataTracked;
+
+pub use symbol::data_unsafe::DataUnsafe;
+
+pub use symbol::func::Func;
+
+pub use symbol::func_tracked::FuncTracked;
+
+pub use symbol::func_unsafe::FuncUnsafe;
+
+pub use symbol::symbol::Symbol;
