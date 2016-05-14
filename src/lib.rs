@@ -25,6 +25,8 @@ pub use lib_impl::LibTracked;
 
 pub use lib_impl::LibUnsafe;
 
+pub use symbol::Symbol;
+
 pub use symbol::data::Data;
 
 pub use symbol::data_tracked::DataTracked;

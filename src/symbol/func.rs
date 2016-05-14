@@ -1,22 +1,24 @@
 use FuncUnsafe;
 use std::marker::PhantomData;
+use Symbol;
 
-pub struct Func<'a, T>
-    where T: Copy + 'a {
+pub struct Func<'a, T> {
     func: FuncUnsafe<T>,
     lifetime: PhantomData<&'a ()>,
 }
 
-impl <'a, T> Func<'a, T>
-    where T: Copy + 'a {
+impl <'a, T> Func<'a, T> {
     pub fn new(func: FuncUnsafe<T>) -> Self {
         Func {
             func: func,
             lifetime: PhantomData,
         }
     }
+}
 
-    pub unsafe fn get(&self) -> T {
+impl <'a, T> Symbol<T> for Func<'a, T>
+    where T: Copy {
+    unsafe fn get(&self) -> T {
         self.func
     }
 }

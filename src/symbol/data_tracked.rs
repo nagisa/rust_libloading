@@ -1,6 +1,6 @@
 use DataUnsafe;
 use LibUnsafe;
-use std::mem;
+use Symbol;
 
 #[derive(Clone)]
 pub struct DataTracked<T, TLib> {
@@ -16,8 +16,10 @@ impl <T, TLib> DataTracked<T, TLib>
             _lib: lib,
         }
     }
+}
 
-    pub unsafe fn get(&self) -> &T {
-        mem::transmute(self.data)
+impl <'a, T, TLib> Symbol<&'a T> for DataTracked<T, TLib> {
+    unsafe fn get(&self) -> &'a T {
+        self.data.get()
     }
 }

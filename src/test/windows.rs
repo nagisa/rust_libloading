@@ -1,6 +1,7 @@
 use kernel32;
 use Lib;
 use winapi::DWORD;
+use Symbol;
 
 #[test]
 fn works_getlasterror() {
