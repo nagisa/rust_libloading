@@ -19,13 +19,13 @@ pub mod symbol;
 #[cfg(test)]
 pub mod test;
 
-pub use lib_impl::Lib;
+pub use lib_impl::lib::Lib;
 
-pub use lib_impl::LibTracked;
+pub use lib_impl::lib_tracked::LibTracked;
 
-pub use lib_impl::LibUnsafe;
+pub use lib_impl::lib_unsafe::LibUnsafe;
 
-pub use symbol::Symbol;
+pub use symbol::symbol::Symbol;
 
 pub use symbol::data::Data;
 
