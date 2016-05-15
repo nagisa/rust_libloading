@@ -1,3 +1,4 @@
+use Func;
 use kernel32;
 use Lib;
 use winapi::DWORD;
@@ -6,8 +7,8 @@ use Symbol;
 #[test]
 fn works_getlasterror() {
     let lib = Lib::new("kernel32.dll").unwrap();
-    let gle = unsafe {
-        lib.find_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
+    let gle: Func<extern "system" fn() -> DWORD> = unsafe {
+        lib.find_func("GetLastError\0").unwrap()
     };
     unsafe {
         kernel32::SetLastError(42);
@@ -18,8 +19,8 @@ fn works_getlasterror() {
 #[test]
 fn works_getlasterror0() {
     let lib = Lib::new("kernel32.dll").unwrap();
-    let gle = unsafe {
-        lib.find_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
+    let gle: Func<extern "system" fn() -> DWORD> = unsafe {
+        lib.find_func("GetLastError\0").unwrap()
     };
     unsafe {
         kernel32::SetLastError(42);
