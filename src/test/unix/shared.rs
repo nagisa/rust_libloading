@@ -22,7 +22,7 @@ fn new_m() {
 fn libm_ceil() {
     let lib = Lib::new(LIBM).unwrap();
     let ceil = unsafe {
-        lib.get_func::<extern fn(f64) -> f64>(b"ceil").unwrap()
+        lib.find_func::<extern fn(f64) -> f64>(b"ceil").unwrap()
     };
     unsafe {
         assert_eq!(ceil.get()(0.45), 1.0);
@@ -33,7 +33,7 @@ fn libm_ceil() {
 fn libm_ceil0() {
     let lib = Lib::new(LIBM).unwrap();
     let ceil = unsafe {
-        lib.get_func::<extern fn(f64) -> f64>(b"ceil\0").unwrap()
+        lib.find_func::<extern fn(f64) -> f64>(b"ceil\0").unwrap()
     };
     unsafe {
         assert_eq!(ceil.get()(0.45), 1.0);

@@ -1,5 +1,6 @@
 use Symbol;
 
+// A pointer to data in a shared library which uses a lifetime to avoid outliving the library.
 pub struct Data<'a, T>
     where T: 'a {
     data: &'a T,

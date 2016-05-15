@@ -20,16 +20,16 @@ impl Lib {
         Ok(result)
     }
 
-    pub unsafe fn get_data<'a, T>(&'a self, symbol: &[u8]) -> R<Data<'a, T>> {
-        let symbol_ptr = try!(self.inner.get_data::<T>(symbol));
+    pub unsafe fn find_data<'a, T>(&'a self, symbol: &[u8]) -> R<Data<'a, T>> {
+        let symbol_ptr = try!(self.inner.find_data::<T>(symbol));
         let symbol_ref = mem::transmute(symbol_ptr);
         let result = Data::new(symbol_ref);
         Ok(result)
     }
 
-    pub unsafe fn get_func<'a, T>(&'a self, symbol: &[u8]) -> R<Func<'a, T>>
+    pub unsafe fn find_func<'a, T>(&'a self, symbol: &[u8]) -> R<Func<'a, T>>
         where T: Copy {
-        let func = try!(self.inner.get_func::<T>(symbol));
+        let func = try!(self.inner.find_func::<T>(symbol));
         let result = Func::new(func);
         Ok(result)
     }

@@ -7,7 +7,7 @@ use Symbol;
 fn works_getlasterror() {
     let lib = Lib::new("kernel32.dll").unwrap();
     let gle = unsafe {
-        lib.get_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
+        lib.find_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
     };
     unsafe {
         kernel32::SetLastError(42);
@@ -19,7 +19,7 @@ fn works_getlasterror() {
 fn works_getlasterror0() {
     let lib = Lib::new("kernel32.dll").unwrap();
     let gle = unsafe {
-        lib.get_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
+        lib.find_func::<extern "system" fn() -> DWORD>(b"GetLastError").unwrap()
     };
     unsafe {
         kernel32::SetLastError(42);

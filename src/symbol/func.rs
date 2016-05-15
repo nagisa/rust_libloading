@@ -2,6 +2,7 @@ use FuncUnsafe;
 use std::marker::PhantomData;
 use Symbol;
 
+// A pointer to a function from a shared library which uses a lifetime to avoid outliving the library.
 pub struct Func<'a, T> {
     func: FuncUnsafe<T>,
     lifetime: PhantomData<&'a ()>,

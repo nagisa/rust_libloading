@@ -5,13 +5,14 @@ use result::Result as R;
 use std::ffi::OsStr;
 use std::mem;
 
+/// A dynamically loaded library.
 #[derive(Debug)]
 pub struct LibUnsafe {
     inner: InnerLib,
 }
 
 impl LibUnsafe {
-    /// Find and load a shared library (module).
+    /// Find and load a shared library.
     ///
     /// Locations where library is searched for is platform specific and can’t be adjusted
     /// portably.
@@ -66,13 +67,13 @@ impl LibUnsafe {
     ///     lib.get(b"errno\0").unwrap()
     /// };
     /// ```
-    pub unsafe fn get_data<T>(&self, symbol: &[u8]) -> R<DataUnsafe<T>> {
-        self.inner.get(symbol)
+    pub unsafe fn find_data<T>(&self, symbol: &[u8]) -> R<DataUnsafe<T>> {
+        self.inner.find(symbol)
     }
 
-    pub unsafe fn get_func<T>(&self, symbol: &[u8]) -> R<FuncUnsafe<T>>
+    pub unsafe fn find_func<T>(&self, symbol: &[u8]) -> R<FuncUnsafe<T>>
         where T: Copy {
-        let func = try!(self.inner.get::<u8>(symbol));
+        let func = try!(self.inner.find::<u8>(symbol));
         let func_ref = &func;
         let result: T = mem::transmute_copy(func_ref);
         Ok(result)
