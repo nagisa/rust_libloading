@@ -1,15 +1,23 @@
-[package]
-name = "libloading"
-version = "0.2.2"
-authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
-build = "build.rs"
-description = "A safer binding to platform’s dynamic library loading utilities"
-keywords = ["dlopen", "load", "shared", "dylib"]
-license = "ISC"
-repository = "https://github.com/nagisa/rust_libloading/"
-documentation = "https://nagisa.github.io/rust_libloading/"
-
 [dependencies]
-winapi = "0.2"
+define_error = "1.0"
 kernel32-sys = "0.2"
 lazy_static = "0.2"
+winapi = "0.2"
+
+[package]
+authors = ["Simonas Kazlauskas <git@kazlauskas.me>", "Tyler Wolf Leonhardt <tyler.wolf.leonhardt@gmail.com>"]
+build = "build.rs"
+description = "A cross-platform shared library loader which is realistic about safety guarantees."
+keywords = [
+    "dll",
+    "dynamic",
+    "library",
+    "shared",
+    "lib"
+]
+license = "ISC"
+name = "sharedlib"
+repository = "https://github.com/Tyleo/shared_lib.git"
+version = "0.2.1"
+# TODO: Create documentation site.
+# documentation = "https://tyleo.github.io/shared_lib/"
