@@ -1,7 +1,10 @@
 //! A cross-platform library loader which is realistic about safety guarantees.
 //! ([crates.io](https://crates.io/crates/sharedlib)) ([github](https://github.com/Tyleo/shared_lib))
 //!
-//! # Give credit here
+//! # TODO
+//! * Give credit here
+//! * Comparison to other crates
+//! * Provide OsStr and Str methods of opening a dll
 //!
 //! # Loading a library
 //! To load a library you can use any of the [Lib](struct.Lib.html), [LibTracked](struct.LibTracked.html), or [LibUnsafe](struct.LibUnsafe.html) `structs`. Each of these `struct`s provides different guarantees. For more information about the guarantees they provide, see the [chosing your guarantees](index.html#choosing-your-guarantees) section, below. We use [Lib](struct.Lib.html) for the examples below.
