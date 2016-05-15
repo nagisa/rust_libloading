@@ -1,10 +1,9 @@
-use os::unix::DLERROR_MUTEX;
+use error::OsError;
+use error::OsErrorFailure;
 use os::unix::external;
 use SharedlibError as E;
 use SharedlibResult as R;
 use std::ffi::CStr;
-use std::io::Error as IoError;
-use std::io::ErrorKind as IoErrorKind;
 
 pub trait OkOrDlerror<T> {
     fn ok_or_dlerror<TStr>(self, function: TStr) -> R<T>
@@ -19,12 +18,17 @@ impl <T> OkOrDlerror<T> for Option<T> {
             None => {
                 let error = unsafe { external::dlerror() };
                 if error.is_null() {
-                    // Can't find error.
-                    panic!();
+                    let err = OsErrorFailure::new(function.as_ref().to_string());
+                    Err(E::from(err))
                 } else {
                     let message = unsafe { CStr::from_ptr(error) };
-                    // Found error.
-                    panic!();
+                    let message_string = message.to_string_lossy().to_string();
+                    let err =
+                        OsError::new(
+                            message_string,
+                            function.as_ref().to_string(),
+                        );
+                    Err(E::from(err))
                 }
             },
         }

@@ -2,22 +2,22 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use string::error::get_last_error_fail as string;
+use string::error::os_error_failure as string;
 
 #[derive(Debug)]
-pub struct GetLastErrorFail {
+pub struct OsErrorFailure {
     function_called: String,
 }
 
-impl GetLastErrorFail {
+impl OsErrorFailure {
     pub fn new(function_called: String) -> Self {
-        GetLastErrorFail {
+        OsErrorFailure {
             function_called: function_called,
         }
     }
 }
 
-impl Display for GetLastErrorFail {
+impl Display for OsErrorFailure {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
@@ -29,7 +29,7 @@ impl Display for GetLastErrorFail {
     }
 }
 
-impl Error for GetLastErrorFail {
+impl Error for OsErrorFailure {
     fn description(&self) -> &str {
         string::description()
     }

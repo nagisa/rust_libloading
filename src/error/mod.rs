@@ -1,14 +1,14 @@
-mod get_last_error;
+mod os_error;
 
-mod get_last_error_fail;
+mod os_error_failure;
 
 mod sharedlib_error;
 
 mod sharedlib_result;
 
-pub use error::get_last_error::GetLastError;
+pub use error::os_error::OsError;
 
-pub use error::get_last_error_fail::GetLastErrorFail;
+pub use error::os_error_failure::OsErrorFailure;
 
 pub use error::sharedlib_error::SharedlibError;
 

@@ -1,3 +1,3 @@
-pub mod get_last_error;
+pub mod os_error;
 
-pub mod get_last_error_fail;
+pub mod os_error_failure;
