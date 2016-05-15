@@ -1,6 +1,6 @@
 use Symbol;
 
-// A raw pointer to a function from a shared library.
+/// A pointer to a shared function which provides no protection against outliving its library.
 pub type FuncUnsafe<T> = T;
 
 impl <T> Symbol<T> for FuncUnsafe<T>

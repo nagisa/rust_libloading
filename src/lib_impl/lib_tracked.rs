@@ -4,7 +4,7 @@ use LibUnsafe;
 use result::Result as R;
 use std::ffi::OsStr;
 
-/// A shared library which allows custom tracking methods.
+/// A shared library which which allows a user-provided ref-counting implementation to track its [Symbols](trait.Symbol.html).
 #[derive(Clone, Debug)]
 pub struct LibTracked<TLib> {
     inner: TLib,

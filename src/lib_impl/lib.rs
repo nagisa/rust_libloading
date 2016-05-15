@@ -5,6 +5,7 @@ use result::Result as R;
 use std::ffi::OsStr;
 use std::mem;
 
+/// A shared library which uses bound lifetimes to track its [Symbols](trait.Symbol.html).
 #[derive(Debug)]
 pub struct Lib {
     inner: LibUnsafe,

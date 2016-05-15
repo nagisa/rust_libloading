@@ -5,7 +5,7 @@ use result::Result as R;
 use std::ffi::OsStr;
 use std::mem;
 
-/// A dynamically loaded library.
+/// A shared library which does not track its [Symbols](trait.Symbol.html).
 #[derive(Debug)]
 pub struct LibUnsafe {
     inner: InnerLib,

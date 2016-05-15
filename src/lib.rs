@@ -29,7 +29,7 @@
 //!
 //! * [Lib](struct.Lib.html) attaches its own lifetime to each symbol it returns. This requires no overhead but it can be difficult to store the returned symbol in a `struct` because the `struct` must have a trackable lifetime which outlives the [Lib](struct.Lib.html). In other words, a struct containing a symbol must parameterize around some lifetime `a`, where `a` is less than or equal to the lifetime of the library.
 //!
-//! * [LibTracked](struct.LibTracked.html) returns symbols with ref counts to the library. This requires overhead but it allows the returned symbol to be stored easily. Additionally, this `struct` is generic and can be used with `Rc`, `Arc`, or a user provided ref count type.
+//! * [LibTracked](struct.LibTracked.html) returns symbols with ref-counts to the library. This requires overhead but it allows the returned symbol to be stored easily. Additionally, this `struct` is generic and can be used with `Rc`, `Arc`, or a user provided ref-count type.
 //!
 //! # Pitfalls
 //! While [sharedlib](index.html) attempts to prevent undefined behavior, loading shared libraries is inherently unsafe. Below are some tips which you may find helpful so that your code is not exposed to undefined behavior.
@@ -106,15 +106,21 @@ pub mod test;
 
 pub use lib_impl::Lib;
 
+pub use lib_impl::LibArc;
+
+pub use lib_impl::LibRc;
+
 pub use lib_impl::LibTracked;
 
 pub use lib_impl::LibUnsafe;
 
 pub use result::Result;
 
-pub use symbol::Symbol;
-
 pub use symbol::Data;
+
+pub use symbol::DataArc;
+
+pub use symbol::DataRc;
 
 pub use symbol::DataTracked;
 
@@ -122,6 +128,12 @@ pub use symbol::DataUnsafe;
 
 pub use symbol::Func;
 
+pub use symbol::FuncArc;
+
+pub use symbol::FuncRc;
+
 pub use symbol::FuncTracked;
 
 pub use symbol::FuncUnsafe;
+
+pub use symbol::Symbol;

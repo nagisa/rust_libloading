@@ -2,7 +2,7 @@ use DataUnsafe;
 use LibUnsafe;
 use Symbol;
 
-// A pointer to a function from a shared library which uses ref counting to avoid outliving the library.
+/// A pointer to shared data which allows a user-provided ref-counting implementation to avoid outliving its library.
 #[derive(Clone)]
 pub struct DataTracked<T, TLib> {
     data: DataUnsafe<T>,
