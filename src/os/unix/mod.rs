@@ -1,5 +1,3 @@
-pub mod dlerror_mutex;
-
 pub mod external;
 
 pub mod lib;
@@ -7,8 +5,6 @@ pub mod lib;
 pub mod ok_or_dlerror;
 
 pub mod rtld_lazy;
-
-pub use os::unix::dlerror_mutex::DLERROR_MUTEX;
 
 pub use os::unix::lib::Lib;
 

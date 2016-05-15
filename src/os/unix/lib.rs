@@ -1,11 +1,12 @@
+use error::LibraryClose;
+use error::LibraryFindSymbol;
+use error::LibraryOpen;
 use os::unix::external;
 use os::unix::OkOrDlerror;
 use os::unix::RTLD_LAZY;
+use SharedlibError as E;
 use SharedlibResult as R;
-use std::ffi::OsStr;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Result as FmtResult;
+use util;
 use std::mem;
 use std::path::Path;
 use std::os::raw::c_char;
@@ -25,19 +26,27 @@ impl Lib {
                 .to_string_lossy();
         let path_to_lib_c_str = path_to_lib_str.as_ptr() as *const c_char;
 
-        {
-            let result = unsafe { external::dlopen(path_to_lib_c_str, RTLD_LAZY) };
+        util::error_guard(
+            || {
+                let result = unsafe { external::dlopen(path_to_lib_c_str, RTLD_LAZY) };
 
-            if result.is_null() {
-                None
-            } else {
-                let lib =
-                    Lib {
-                        handle: result,
-                    };
-                Some(lib)
+                if result.is_null() {
+                    None
+                } else {
+                    let lib =
+                        Lib {
+                            handle: result,
+                        };
+                    Some(lib)
+                }
             }
-        }.ok_or_dlerror("dlopen")
+        ).ok_or_dlerror("dlopen")
+        .map_err(
+            |err| {
+                let err = LibraryOpen::new(Box::new(err), path_to_lib.as_ref().to_path_buf());
+                E::from(err)
+            }
+        )
     }
 
     pub unsafe fn find<T, TStr>(&self, symbol_str: TStr) -> R<*const T>
@@ -46,21 +55,41 @@ impl Lib {
         let symbol = symbol.as_ptr();
         let symbol = symbol as *const c_char;
 
-        let symbol = external::dlsym(self.handle, symbol);
-        if symbol.is_null() {
-            None
-        } else {
-            Some(mem::transmute(symbol))
-        }.ok_or_dlerror("dlsym")
+        util::error_guard(
+            || {
+                let symbol = external::dlsym(self.handle, symbol);
+                if symbol.is_null() {
+                    None
+                } else {
+                    Some(mem::transmute(symbol))
+                }
+            }
+        ).ok_or_dlerror("dlsym")
+        .map_err(
+            |err| {
+                let err = LibraryFindSymbol::new(Box::new(err), symbol_str.as_ref().to_string());
+                E::from(err)
+            }
+        )
     }
 }
 
 impl Drop for Lib {
     fn drop(&mut self) {
-        if unsafe { external::dlclose(self.handle) } == 0 {
-            Some(())
-        } else {
-            None
-        }.ok_or_dlerror("dlclose").unwrap();
+        util::error_guard(
+            || {
+                if unsafe { external::dlclose(self.handle) } == 0 {
+                    Some(())
+                } else {
+                    None
+                }
+            }
+        ).ok_or_dlerror("dlclose")
+        .map_err(
+            |err| {
+                let err = LibraryClose::new(Box::new(err));
+                E::from(err)
+            }
+        ).unwrap();
     }
 }
