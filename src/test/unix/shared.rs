@@ -1,13 +1,7 @@
 use Func;
 use Lib;
-use os::unix::Lib as UnixLib;
 use Symbol;
 use test::unix::LIBM;
-
-#[test]
-fn this() {
-    UnixLib::this();
-}
 
 #[test]
 fn new_libm() {

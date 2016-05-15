@@ -1,20 +1,14 @@
 use os::unix::external;
+use os::unix::OkOrDlerror;
 use os::unix::RTLD_LAZY;
-use os::unix::RTLD_NOW;
-use os::unix::util;
-use os::util::CowCString;
-use os::util::CStringAsRef;
-use result::Result as R;
+use SharedlibResult as R;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::mem;
 use std::os::raw::c_char;
-use std::os::raw::c_int;
 use std::os::raw::c_void;
-use std::os::unix::ffi::OsStrExt;
-use std::ptr;
 
 /// A platform-specific equivalent of the cross-platform `Lib`.
 pub struct Lib {
@@ -22,52 +16,32 @@ pub struct Lib {
 }
 
 impl Lib {
-    fn open<P>(filename: Option<P>, flags: c_int) -> R<Lib>
-        where P: AsRef<OsStr> {
-        let filename = match filename {
-            None => None,
-            Some(ref f) => Some(try!(CowCString::from_bytes(f.as_ref().as_bytes()))),
-        };
-        util::with_dlerror(move || {
-            let result = unsafe {
-                let r = external::dlopen(match filename {
-                    None => ptr::null(),
-                    Some(ref f) => f.cstring_ref()
-                }, flags);
-                // ensure filename livess until dlopen completes
-                drop(filename);
-                r
-            };
-            if result.is_null() {
-                None
-            } else {
-                Some(Lib {
-                    handle: result
-                })
-            }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("dlopen failed but dlerror did not report anything")
-        ))
-    }
-
     /// Find and load a shared library (module).
     ///
     /// Locations where library is searched for is platform specific and can’t be adjusted
     /// portably.
     ///
     /// Corresponds to `dlopen(filename)`.
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> R<Lib> {
-        Lib::open(Some(filename), RTLD_LAZY)
-    }
+    pub fn new<TStr>(filename: TStr) -> R<Lib>
+        where TStr: AsRef<OsStr> {
+        let filename = filename.as_ref();
+        let filename = filename.to_string_lossy();
+        let filename = filename.as_ptr();
+        let filename = filename as *const c_char;
 
-    /// Load the dynamic libraries linked into main program.
-    ///
-    /// This allows retrieving symbols from any **dynamic** library linked into the program,
-    /// without specifying the exact library.
-    ///
-    /// Corresponds to `dlopen(NULL)`.
-    pub fn this() -> Lib {
-        Lib::open(None::<&OsStr>, RTLD_NOW).unwrap()
+        {
+            let result = unsafe { external::dlopen(filename, RTLD_LAZY) };
+
+            if result.is_null() {
+                None
+            } else {
+                let lib =
+                    Lib {
+                        handle: result,
+                    };
+                Some(lib)
+            }
+        }.ok_or_dlerror("dlopen")
     }
 
     /// Get a symbol by name.
@@ -94,33 +68,22 @@ impl Lib {
         //
         // We try to leave as little space as possible for this to occur, but we can’t exactly
         // fully prevent it.
-        let symbol_result =
-            util::with_dlerror(
-                || {
-                    external::dlerror();
-                    let symbol = external::dlsym(self.handle, symbol);
-                    if symbol.is_null() {
-                        None
-                    } else {
-                        Some(symbol)
-                    }
-                }
-            );
-        match symbol_result {
-            Err(None) => panic!(),
-            Err(Some(e)) => Err(e),
-            Ok(symbol) => Ok(mem::transmute(symbol)),
-        }
+        let symbol = external::dlsym(self.handle, symbol);
+        if symbol.is_null() {
+            None
+        } else {
+            Some(mem::transmute(symbol))
+        }.ok_or_dlerror("dlsym")
     }
 }
 
 impl Drop for Lib {
     fn drop(&mut self) {
-        util::with_dlerror(|| if unsafe { external::dlclose(self.handle) } == 0 {
+        if unsafe { external::dlclose(self.handle) } == 0 {
             Some(())
         } else {
             None
-        }).unwrap();
+        }.ok_or_dlerror("dlclose").unwrap();
     }
 }
 
