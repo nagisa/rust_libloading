@@ -8,7 +8,7 @@ use Symbol;
 fn works_getlasterror() {
     let lib = Lib::new("kernel32.dll").unwrap();
     let gle: Func<extern "system" fn() -> DWORD> = unsafe {
-        lib.find_func("GetLastError\0").unwrap()
+        lib.find_func("GetLastError").unwrap()
     };
     unsafe {
         kernel32::SetLastError(42);

@@ -1,8 +1,8 @@
 use kernel32;
 use os::util::CowCString;
 use os::util::CStringAsRef;
-use os::windows::util;
 use os::windows::ErrorModeGuard;
+use os::windows::OkOrGetLastError;
 use result::Result as R;
 use std::ffi::OsStr;
 use std::ffi::OsString;
@@ -14,6 +14,7 @@ use std::os::raw::c_char;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 use winapi::HMODULE;
+use winapi::LPCSTR;
 use winapi::WCHAR;
 
 /// A platform-specific equivalent of the cross-platform `Library`.
@@ -32,7 +33,7 @@ impl Lib {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
-        let ret = util::with_get_last_error(|| {
+        let result = {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
             let handle = unsafe { kernel32::LoadLibraryW(wide_filename.as_ptr()) };
@@ -42,13 +43,11 @@ impl Lib {
                 let lib = Lib { handle: handle };
                 Some(lib)
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("LoadLibraryW failed but GetLastError did not report the error")
-        ));
+        }.ok_or_get_last_error();
 
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
                              // inside the closure by mistake. See comment inside the closure.
-        ret
+        result
     }
 
     /// Get a symbol by name.
@@ -67,22 +66,16 @@ impl Lib {
         where TStr: AsRef<str> {
         let symbol = symbol.as_ref();
         let symbol = symbol.as_ptr();
-        let symbol = symbol as *const i8;
+        let symbol = symbol as LPCSTR;
 
-        util::with_get_last_error(
-            || {
-                let symbol = kernel32::GetProcAddress(self.handle, symbol);
-                if symbol.is_null() {
-                    None
-                } else {
-                    Some(mem::transmute(symbol))
-                }
+        {
+            let symbol = kernel32::GetProcAddress(self.handle, symbol);
+            if symbol.is_null() {
+                None
+            } else {
+                Some(mem::transmute(symbol))
             }
-        ).map_err(
-            |e| e.unwrap_or_else(
-                || panic!("GetProcAddress failed but GetLastError did not report the error")
-            )
-        )
+        }.ok_or_get_last_error()
     }
 }
 
@@ -104,12 +97,12 @@ impl Debug for Lib {
 
 impl Drop for Lib {
     fn drop(&mut self) {
-        util::with_get_last_error(|| {
+        {
             if unsafe { kernel32::FreeLibrary(self.handle) == 0 } {
                 None
             } else {
                 Some(())
             }
-        }).unwrap()
+        }.ok_or_get_last_error().unwrap()
     }
 }
