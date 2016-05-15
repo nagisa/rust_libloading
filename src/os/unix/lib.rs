@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::mem;
+use std::path::Path;
 use std::os::raw::c_char;
 use std::os::raw::c_void;
 
@@ -15,15 +16,16 @@ pub struct Lib {
 }
 
 impl Lib {
-    pub fn new<TStr>(filename: TStr) -> R<Lib>
-        where TStr: AsRef<OsStr> {
-        let filename = filename.as_ref();
-        let filename = filename.to_string_lossy();
-        let filename = filename.as_ptr();
-        let filename = filename as *const c_char;
+    pub fn new<TPath>(path_to_lib: TPath) -> R<Lib>
+        where TPath: AsRef<Path> {
+        let path_to_lib_str =
+            path_to_lib
+                .as_ref()
+                .to_string_lossy();
+        let path_to_lib_c_str = path_to_lib_str.as_ptr() as *const c_char;
 
         {
-            let result = unsafe { external::dlopen(filename, RTLD_LAZY) };
+            let result = unsafe { external::dlopen(path_to_lib_c_str, RTLD_LAZY) };
 
             if result.is_null() {
                 None

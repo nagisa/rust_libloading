@@ -1,7 +1,6 @@
 use kernel32;
 use os::windows::OkOrGetLastError;
 use SharedlibResult as R;
-use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -9,6 +8,7 @@ use std::fmt::Result as FmtResult;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
+use std::path::Path;
 use util;
 use winapi::HMODULE;
 use winapi::LPCSTR;
@@ -19,12 +19,20 @@ pub struct Lib {
 }
 
 impl Lib {
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> R<Lib> {
-        let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
+    pub fn new<TPath>(path_to_lib: TPath) -> R<Lib>
+        where TPath: AsRef<Path> {
+        let path_to_lib_vec: Vec<_> =
+            path_to_lib
+                .as_ref()
+                .as_os_str()
+                .encode_wide()
+                .chain((0..1))
+                .collect();
+        let path_to_lib_ptr = path_to_lib_vec.as_ptr();
 
         util::error_guard(
             || {
-                let handle = unsafe { kernel32::LoadLibraryW(wide_filename.as_ptr()) };
+                let handle = unsafe { kernel32::LoadLibraryW(path_to_lib_ptr) };
                 let lib_option =
                     if handle.is_null()  {
                         None

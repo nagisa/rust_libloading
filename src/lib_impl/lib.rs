@@ -2,8 +2,8 @@ use Data;
 use Func;
 use LibUnsafe;
 use SharedlibResult as R;
-use std::ffi::OsStr;
 use std::mem;
+use std::path::Path;
 
 /// A shared library which uses bound lifetimes to track its [Symbols](trait.Symbol.html).
 #[derive(Debug)]
@@ -12,11 +12,12 @@ pub struct Lib {
 }
 
 impl Lib {
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> R<Self> {
-        let inner = try!(LibUnsafe::new(filename));
+    pub fn new<TPath>(path_to_lib: TPath) -> R<Self>
+        where TPath: AsRef<Path> {
+        let inner = try!(LibUnsafe::new(path_to_lib));
         let result =
             Lib {
-                inner: inner
+                inner: inner,
             };
         Ok(result)
     }

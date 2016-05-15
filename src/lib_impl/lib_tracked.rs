@@ -2,7 +2,7 @@ use DataTracked;
 use FuncTracked;
 use LibUnsafe;
 use SharedlibResult as R;
-use std::ffi::OsStr;
+use std::path::Path;
 
 /// A shared library which which allows a user-provided ref-counting implementation to track its [Symbols](trait.Symbol.html).
 #[derive(Clone, Debug)]
@@ -12,8 +12,9 @@ pub struct LibTracked<TLib> {
 
 impl <TLib> LibTracked<TLib>
     where TLib: AsRef<LibUnsafe> + Clone + From<LibUnsafe> {
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> R<Self> {
-        let lib_unsafe = try!(LibUnsafe::new(filename));
+    pub fn new<TPath>(path_to_lib: TPath) -> R<Self>
+        where TPath: AsRef<Path> {
+        let lib_unsafe = try!(LibUnsafe::new(path_to_lib));
         let inner = TLib::from(lib_unsafe);
         let result =
             LibTracked {
