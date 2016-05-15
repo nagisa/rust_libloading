@@ -1,7 +1,7 @@
 use Data;
 use Func;
 use LibUnsafe;
-use result::Result as R;
+use SharedlibResult as R;
 use std::ffi::OsStr;
 use std::mem;
 

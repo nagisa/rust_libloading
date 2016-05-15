@@ -6,6 +6,7 @@ use std::fmt::Result;
 
 error!(
     SharedlibError {
+        GetLastError,
         GetLastErrorFail
     }
 );

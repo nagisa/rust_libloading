@@ -1,16 +1,13 @@
 use kernel32;
-use os::util::CowCString;
-use os::util::CStringAsRef;
 use os::windows::ErrorModeGuard;
 use os::windows::OkOrGetLastError;
-use result::Result as R;
+use SharedlibResult as R;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::mem;
-use std::os::raw::c_char;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 use winapi::HMODULE;
@@ -43,7 +40,7 @@ impl Lib {
                 let lib = Lib { handle: handle };
                 Some(lib)
             }
-        }.ok_or_get_last_error();
+        }.ok_or_get_last_error("LoadLibraryW");
 
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
                              // inside the closure by mistake. See comment inside the closure.
@@ -75,7 +72,7 @@ impl Lib {
             } else {
                 Some(mem::transmute(symbol))
             }
-        }.ok_or_get_last_error()
+        }.ok_or_get_last_error("GetProcAddress")
     }
 }
 
@@ -103,6 +100,6 @@ impl Drop for Lib {
             } else {
                 Some(())
             }
-        }.ok_or_get_last_error().unwrap()
+        }.ok_or_get_last_error("FreeLibrary").unwrap()
     }
 }

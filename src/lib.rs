@@ -1,6 +1,8 @@
 //! A cross-platform library loader which is realistic about safety guarantees.
 //! ([crates.io](https://crates.io/crates/sharedlib)) ([github](https://github.com/Tyleo/shared_lib))
 //!
+//! # Give credit here
+//!
 //! # Loading a library
 //! To load a library you can use any of the [Lib](struct.Lib.html), [LibTracked](struct.LibTracked.html), or [LibUnsafe](struct.LibUnsafe.html) `structs`. Each of these `struct`s provides different guarantees. For more information about the guarantees they provide, see the [chosing your guarantees](index.html#choosing-your-guarantees) section, below. We use [Lib](struct.Lib.html) for the examples below.
 //!
@@ -75,6 +77,8 @@
 //!
 //! For convienience, the second example is provided as the `find_func` method, which does this error-prone conversion behind the scenes.
 //!
+//! # Comparison with other shared lib crates
+//!
 //! # Frequently asked questions
 //!
 //! ### What is a shared library?
@@ -102,8 +106,6 @@ mod os;
 
 mod lib_impl;
 
-mod result;
-
 mod string;
 
 mod symbol;
@@ -126,8 +128,6 @@ pub use lib_impl::LibRc;
 pub use lib_impl::LibTracked;
 
 pub use lib_impl::LibUnsafe;
-
-pub use result::Result;
 
 pub use symbol::Data;
 

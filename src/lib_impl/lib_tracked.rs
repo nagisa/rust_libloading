@@ -1,7 +1,7 @@
 use DataTracked;
 use FuncTracked;
 use LibUnsafe;
-use result::Result as R;
+use SharedlibResult as R;
 use std::ffi::OsStr;
 
 /// A shared library which which allows a user-provided ref-counting implementation to track its [Symbols](trait.Symbol.html).
