@@ -22,3 +22,14 @@ impl <T, TLib> Symbol<T> for FuncTracked<T, TLib>
         self.func
     }
 }
+
+impl <T, TLib> Clone for FuncTracked<T, TLib>
+    where T: Copy,
+          TLib: Clone {
+    fn clone(&self) -> Self {
+        FuncTracked {
+            func: self.func,
+            _lib: self._lib.clone(),
+        }
+    }
+}

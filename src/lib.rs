@@ -83,6 +83,9 @@
 //! ### Doesn't rust already provide linking against shared libraries?
 //! While rust provides linking against shared libraries, it does not provide the ability to load them at runtime. If you only want to use shared libraries that you know about before runtime, you may find not find this crate very useful. On the other hand, if you wish to load something at runtime, like a plugin, you are in the right place.
 
+#[macro_use]
+extern crate define_error;
+
 #[cfg(unix)]
 #[macro_use]
 extern crate lazy_static;
@@ -92,6 +95,8 @@ extern crate kernel32;
 
 #[cfg(windows)]
 extern crate winapi;
+
+mod error;
 
 mod os;
 

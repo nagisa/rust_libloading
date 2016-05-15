@@ -1,6 +1,10 @@
+[dependencies]
+define_error = "1.0"
+kernel32-sys = "0.2"
+lazy_static = "0.2"
+winapi = "0.2"
+
 [package]
-name = "sharedlib"
-version = "0.2.1"
 authors = ["Simonas Kazlauskas <git@kazlauskas.me>", "Tyler Wolf Leonhardt <tyler.wolf.leonhardt@gmail.com>"]
 build = "build.rs"
 description = "A cross-platform shared library loader which is realistic about safety guarantees."
@@ -12,11 +16,8 @@ keywords = [
     "lib"
 ]
 license = "ISC"
+name = "sharedlib"
 repository = "https://github.com/Tyleo/shared_lib.git"
+version = "0.2.1"
 # TODO: Create documentation site.
 # documentation = "https://tyleo.github.io/shared_lib/"
-
-[dependencies]
-winapi = "0.2"
-kernel32-sys = "0.2"
-lazy_static = "0.2"
