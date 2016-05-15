@@ -93,7 +93,6 @@
 #[macro_use]
 extern crate define_error;
 
-#[cfg(unix)]
 #[macro_use]
 extern crate lazy_static;
 
