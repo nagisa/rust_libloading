@@ -96,7 +96,7 @@ extern crate kernel32;
 #[cfg(windows)]
 extern crate winapi;
 
-mod error;
+pub mod error;
 
 mod os;
 
@@ -104,10 +104,18 @@ mod lib_impl;
 
 mod result;
 
+mod string;
+
 mod symbol;
 
 #[cfg(test)]
-pub mod test;
+mod test;
+
+mod util;
+
+pub use error::SharedlibError;
+
+pub use error::SharedlibResult;
 
 pub use lib_impl::Lib;
 

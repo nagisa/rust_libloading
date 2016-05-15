@@ -4,6 +4,7 @@ use os::uses::Lib as InnerLib;
 use result::Result as R;
 use std::ffi::OsStr;
 use std::mem;
+use util;
 
 /// A shared library which does not track its [Symbols](trait.Symbol.html).
 #[derive(Debug)]
@@ -67,13 +68,22 @@ impl LibUnsafe {
     ///     lib.get(b"errno\0").unwrap()
     /// };
     /// ```
-    pub unsafe fn find_data<T>(&self, symbol: &[u8]) -> R<DataUnsafe<T>> {
-        self.inner.find(symbol)
+    pub unsafe fn find_data<T, TStr>(&self, symbol: TStr) -> R<DataUnsafe<T>>
+        where TStr: AsRef<str> {
+        match util::null_terminate(&symbol) {
+            Some(symbol) => self.inner.find(symbol),
+            None => self.inner.find(symbol),
+        }
     }
 
-    pub unsafe fn find_func<T>(&self, symbol: &[u8]) -> R<FuncUnsafe<T>>
-        where T: Copy {
-        let func = try!(self.inner.find::<u8>(symbol));
+    pub unsafe fn find_func<T, TStr>(&self, symbol: TStr) -> R<FuncUnsafe<T>>
+        where T: Copy,
+              TStr: AsRef<str> {
+        let func =
+            match util::null_terminate(&symbol) {
+                Some(symbol) => try!(self.inner.find::<u8, _>(symbol)),
+                None => try!(self.inner.find::<u8, _>(symbol)),
+            };
         let func_ref = &func;
         let result: T = mem::transmute_copy(func_ref);
         Ok(result)

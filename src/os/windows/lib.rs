@@ -10,6 +10,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::mem;
+use std::os::raw::c_char;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 use winapi::HMODULE;
@@ -62,18 +63,26 @@ impl Lib {
     ///
     /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
     /// memory safe.
-    pub unsafe fn find<T>(&self, symbol: &[u8]) -> R<*const T> {
-        let symbol = try!(CowCString::from_bytes(symbol));
-        util::with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress(self.handle, symbol.cstring_ref());
-            if symbol.is_null() {
-                None
-            } else {
-                Some(mem::transmute(symbol))
+    pub unsafe fn find<T, TStr>(&self, symbol: TStr) -> R<*const T>
+        where TStr: AsRef<str> {
+        let symbol = symbol.as_ref();
+        let symbol = symbol.as_ptr();
+        let symbol = symbol as *const i8;
+
+        util::with_get_last_error(
+            || {
+                let symbol = kernel32::GetProcAddress(self.handle, symbol);
+                if symbol.is_null() {
+                    None
+                } else {
+                    Some(mem::transmute(symbol))
+                }
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("GetProcAddress failed but GetLastError did not report the error")
-        ))
+        ).map_err(
+            |e| e.unwrap_or_else(
+                || panic!("GetProcAddress failed but GetLastError did not report the error")
+            )
+        )
     }
 }
 

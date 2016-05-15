@@ -22,17 +22,19 @@ impl <TLib> LibTracked<TLib>
         Ok(result)
     }
 
-    pub unsafe fn find_data<T>(&self, symbol: &[u8]) -> R<DataTracked<T, TLib>> {
+    pub unsafe fn find_data<T, TStr>(&self, symbol: TStr) -> R<DataTracked<T, TLib>>
+        where TStr: AsRef<str> {
         let lib = self.inner.as_ref();
-        let symbol_ptr = try!(lib.find_data::<T>(symbol));
+        let symbol_ptr = try!(lib.find_data::<T, TStr>(symbol));
         let result = DataTracked::new(symbol_ptr, self.inner.clone());
         Ok(result)
     }
 
-    pub unsafe fn find_func<T>(&self, symbol: &[u8]) -> R<FuncTracked<T, TLib>>
-        where T: Copy {
+    pub unsafe fn find_func<T, TStr>(&self, symbol: TStr) -> R<FuncTracked<T, TLib>>
+        where T: Copy,
+              TStr: AsRef<str> {
         let lib = self.inner.as_ref();
-        let func = try!(lib.find_func::<T>(symbol));
+        let func = try!(lib.find_func::<T, TStr>(symbol));
         let result = FuncTracked::new(func, self.inner.clone());
         Ok(result)
     }
