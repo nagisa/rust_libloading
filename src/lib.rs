@@ -1,10 +1,16 @@
 //! A cross-platform library loader which is realistic about safety guarantees.
+//!
 //! ([crates.io](https://crates.io/crates/sharedlib)) ([github](https://github.com/Tyleo/shared_lib))
 //!
+//! Based on [libloading](https://nagisa.github.io/rust_libloading/) by Simonas Kazlauskas.
+//!
 //! # TODO
-//! * Give credit here
+//! * Complete error implementations.
+//! * Add error guards in Unix
+//! * Make sure all functions are styled properly
 //! * Comparison to other crates
-//! * Provide OsStr and Str methods of opening a dll
+//! * Document
+//! * Testing and build system
 //!
 //! # Loading a library
 //! To load a library you can use any of the [Lib](struct.Lib.html), [LibTracked](struct.LibTracked.html), or [LibUnsafe](struct.LibUnsafe.html) `structs`. Each of these `struct`s provides different guarantees. For more information about the guarantees they provide, see the [chosing your guarantees](index.html#choosing-your-guarantees) section, below. We use [Lib](struct.Lib.html) for the examples below.
@@ -80,7 +86,7 @@
 //!
 //! For convienience, the second example is provided as the `find_func` method, which does this error-prone conversion behind the scenes.
 //!
-//! # Comparison with other shared lib crates
+//! # Comparison with other crates for loabing shared libraries
 //!
 //! # Frequently asked questions
 //!

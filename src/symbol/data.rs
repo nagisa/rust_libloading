@@ -1,6 +1,7 @@
 use Symbol;
 
 /// A pointer to shared data which uses a bound lifetime to avoid outliving its library.
+#[derive(Debug)]
 pub struct Data<'a, T>
     where T: 'a {
     data: &'a T,

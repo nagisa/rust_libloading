@@ -1,19 +1,18 @@
+use error::LibraryClose;
+use error::LibraryFindSymbol;
+use error::LibraryOpen;
 use kernel32;
 use os::windows::OkOrGetLastError;
+use SharedlibError as E;
 use SharedlibResult as R;
-use std::ffi::OsString;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Result as FmtResult;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
-use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
 use util;
 use winapi::HMODULE;
 use winapi::LPCSTR;
-use winapi::WCHAR;
 
+#[derive(Debug)]
 pub struct Lib {
     handle: HMODULE
 }
@@ -42,12 +41,17 @@ impl Lib {
                     };
                 lib_option.ok_or_get_last_error("LoadLibraryW")
             }
+        ).map_err(
+            |err| {
+                let err = LibraryOpen::new(Box::new(err), path_to_lib.as_ref().to_path_buf());
+                E::from(err)
+            }
         )
     }
 
-    pub unsafe fn find<T, TStr>(&self, symbol: TStr) -> R<*const T>
+    pub unsafe fn find<T, TStr>(&self, symbol_str: TStr) -> R<*const T>
         where TStr: AsRef<str> {
-        let symbol = symbol.as_ref();
+        let symbol = symbol_str.as_ref();
         let symbol = symbol.as_ptr();
         let symbol = symbol as LPCSTR;
 
@@ -60,23 +64,12 @@ impl Lib {
                     Some(mem::transmute(symbol))
                 }.ok_or_get_last_error("GetProcAddress")
             }
-        )
-    }
-}
-
-impl Debug for Lib {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        unsafe {
-            let mut buf: [WCHAR; 1024] = mem::uninitialized();
-            let len = kernel32::GetModuleFileNameW(self.handle,
-                                                   (&mut buf[..]).as_mut_ptr(), 1024) as usize;
-            if len == 0 {
-                f.write_str(&format!("Library@{:p}", self.handle))
-            } else {
-                let string: OsString = OsString::from_wide(&buf[..len]);
-                f.write_str(&format!("Library@{:p} from {:?}", self.handle, string))
+        ).map_err(
+            |err| {
+                let err = LibraryFindSymbol::new(Box::new(err), symbol_str.as_ref().to_string());
+                E::from(err)
             }
-        }
+        )
     }
 }
 
@@ -88,8 +81,13 @@ impl Drop for Lib {
                     None
                 } else {
                     Some(())
-                }.ok_or_get_last_error("FreeLibrary").unwrap()
+                }.ok_or_get_last_error("FreeLibrary")
             }
-        )
+        ).map_err(
+            |err| {
+                let err = LibraryClose::new(Box::new(err));
+                E::from(err)
+            }
+        ).unwrap()
     }
 }

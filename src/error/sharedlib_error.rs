@@ -6,6 +6,9 @@ use std::fmt::Result;
 
 error!(
     SharedlibError {
+        LibraryClose,
+        LibraryFindSymbol,
+        LibraryOpen,
         OsError,
         OsErrorFailure
     }

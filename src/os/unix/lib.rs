@@ -11,6 +11,7 @@ use std::path::Path;
 use std::os::raw::c_char;
 use std::os::raw::c_void;
 
+#[derive(Debug)]
 pub struct Lib {
     handle: *mut c_void
 }
@@ -39,9 +40,9 @@ impl Lib {
         }.ok_or_dlerror("dlopen")
     }
 
-    pub unsafe fn find<T, TStr>(&self, symbol: TStr) -> R<*const T>
+    pub unsafe fn find<T, TStr>(&self, symbol_str: TStr) -> R<*const T>
         where TStr: AsRef<str> {
-        let symbol = symbol.as_ref();
+        let symbol = symbol_str.as_ref();
         let symbol = symbol.as_ptr();
         let symbol = symbol as *const c_char;
 
@@ -61,11 +62,5 @@ impl Drop for Lib {
         } else {
             None
         }.ok_or_dlerror("dlclose").unwrap();
-    }
-}
-
-impl Debug for Lib {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        f.write_str(&format!("Lib@{:p}", self.handle))
     }
 }

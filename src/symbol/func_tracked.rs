@@ -2,6 +2,7 @@ use FuncUnsafe;
 use Symbol;
 
 /// A pointer to a shared function which allows a user-provided ref-counting implementation to avoid outliving its library.
+#[derive(Debug)]
 pub struct FuncTracked<T, TLib> {
     func: FuncUnsafe<T>,
     _lib: TLib,
