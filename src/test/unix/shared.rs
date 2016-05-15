@@ -1,3 +1,4 @@
+use Func;
 use Lib;
 use os::unix::Lib as UnixLib;
 use Symbol;
@@ -21,8 +22,8 @@ fn new_m() {
 #[test]
 fn libm_ceil() {
     let lib = Lib::new(LIBM).unwrap();
-    let ceil = unsafe {
-        lib.find_func::<extern fn(f64) -> f64>(b"ceil").unwrap()
+    let ceil: Func<extern fn(f64) -> f64> = unsafe {
+        lib.find_func("ceil").unwrap()
     };
     unsafe {
         assert_eq!(ceil.get()(0.45), 1.0);
@@ -32,8 +33,8 @@ fn libm_ceil() {
 #[test]
 fn libm_ceil0() {
     let lib = Lib::new(LIBM).unwrap();
-    let ceil = unsafe {
-        lib.find_func::<extern fn(f64) -> f64>(b"ceil\0").unwrap()
+    let ceil: Func<extern fn(f64) -> f64> = unsafe {
+        lib.find_func("ceil\0").unwrap()
     };
     unsafe {
         assert_eq!(ceil.get()(0.45), 1.0);

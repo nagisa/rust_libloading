@@ -10,6 +10,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::mem;
+use std::os::raw::c_char;
 use std::os::raw::c_int;
 use std::os::raw::c_void;
 use std::os::unix::ffi::OsStrExt;
@@ -81,8 +82,12 @@ impl Lib {
     ///
     /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
     /// memory safe.
-    pub unsafe fn find<T>(&self, symbol: &[u8]) -> R<*const T> {
-        let symbol = try!(CowCString::from_bytes(symbol));
+    pub unsafe fn find<T, TStr>(&self, symbol: TStr) -> R<*const T>
+        where TStr: AsRef<str> {
+        let symbol = symbol.as_ref();
+        let symbol = symbol.as_ptr();
+        let symbol = symbol as *const c_char;
+
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
@@ -93,7 +98,7 @@ impl Lib {
             util::with_dlerror(
                 || {
                     external::dlerror();
-                    let symbol = external::dlsym(self.handle, symbol.cstring_ref());
+                    let symbol = external::dlsym(self.handle, symbol);
                     if symbol.is_null() {
                         None
                     } else {
