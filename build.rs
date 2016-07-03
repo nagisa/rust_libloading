@@ -1,26 +1,19 @@
-#[cfg(any(target_os="linux",
-          target_os="android"))]
-fn main(){
-    println!("cargo:rustc-link-lib=dl");
-}
+extern crate target_build_utils;
+use target_build_utils::TargetInfo;
 
-#[cfg(any(target_os="freebsd",
-          target_os="dragonfly"))]
 fn main(){
-    println!("cargo:rustc-link-lib=c");
-}
+    let target = TargetInfo::new().expect("could not get target info");
+    match target.target_os() {
+        "linux" | "android" => println!("cargo:rustc-link-lib=dl"),
+        "freebsd" | "dragonfly" => println!("cargo:rustc-link-lib=c"),
 
-#[cfg(any(target_os="openbsd",
-          target_os="bitrig",
-          target_os="netbsd",
-          target_os="macos",
-          target_os="ios"))]
-fn main(){
-    // netbsd claims dl* will be available to any dynamically linked binary, but I haven’t found
-    // any libraries that have to be linked to on other platforms.
-}
+        // netbsd claims dl* will be available to any dynamically linked binary, but I haven’t
+        // found any libraries that have to be linked to on other platforms.
+        // "openbsd" | "bitrig" | "netbsd" | "macos" | "ios" => {}
+        //
+        // dependencies come with winapi
+        // "windows" => {}
+        _ => {}
+    }
 
-#[cfg(windows)]
-fn main(){
-    // dependencies come with winapi.
 }
