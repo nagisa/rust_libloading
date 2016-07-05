@@ -1,4 +1,6 @@
 language: rust
+sudo: false
+cache: cargo
 rust:
   - 1.8.0
   - stable
