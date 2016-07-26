@@ -13,7 +13,7 @@ lazy_static! {
     static ref DLERROR_MUTEX: Mutex<()> = Mutex::new(());
 }
 
-// libdl is retarded.
+// libdl is crazy.
 //
 // First of all, whole error handling scheme in libdl is done via setting and querying some global
 // state, therefore it is not safe to use libdl in MT-capable environment at all. Only in POSIX
