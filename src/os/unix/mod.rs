@@ -55,6 +55,8 @@ pub struct Library {
     handle: *mut raw::c_void
 }
 
+unsafe impl ::std::marker::Send for Library {}
+
 impl Library {
     fn open<P>(filename: Option<P>, flags: raw::c_int) -> ::Result<Library>
     where P: AsRef<OsStr> {
