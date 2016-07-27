@@ -1,6 +1,3 @@
-/// UNIX implementation of dynamic library loading.
-///
-/// This module should eventually be expanded with more UNIX-specific functionality in the future.
 use util::{CowCString, CStringAsRef};
 
 use std::ffi::{CStr, OsStr};

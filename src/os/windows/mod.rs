@@ -1,6 +1,3 @@
-/// Windows implementation of dynamic library loading.
-///
-/// This module should be expanded with more Windows-specific functionality in the future.
 extern crate winapi;
 extern crate kernel32;
 
