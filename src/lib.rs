@@ -50,6 +50,7 @@ use self::os::unix as imp;
 use self::os::windows as imp;
 
 pub mod os;
+pub mod changelog;
 mod util;
 
 pub type Result<T> = ::std::io::Result<T>;
