@@ -1,6 +1,6 @@
 //! Project changelog
 
-/// Release 0.3.0 (Date TBA)
+/// Release 0.3.0 (2016-07-27)
 ///
 /// * Greatly improved documentation, especially around platform-specific behaviours;
 /// * Improved test suite by building our own library to test against;
@@ -23,4 +23,4 @@
 /// * Added `os::unix::Library::open` which allows specifying arbitrary flags (e.g. `RTLD_LAZY`);
 /// * Added `os::windows::Library::get_ordinal` which allows finding a function or variable by its
 /// ordinal number;
-pub mod release_0_3_0 {}
+pub mod r0_3_0 {}
