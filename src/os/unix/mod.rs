@@ -55,7 +55,37 @@ pub struct Library {
 unsafe impl ::std::marker::Send for Library {}
 
 impl Library {
-    fn open<P>(filename: Option<P>, flags: raw::c_int) -> ::Result<Library>
+    /// Find and load a shared library (module).
+    ///
+    /// Locations where library is searched for is platform specific and can’t be adjusted
+    /// portably.
+    ///
+    /// Corresponds to `dlopen(filename, RTLD_NOW)`.
+    #[inline]
+    pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
+        Library::open(Some(filename), RTLD_NOW)
+    }
+
+    /// Load the dynamic libraries linked into main program.
+    ///
+    /// This allows retrieving symbols from any **dynamic** library linked into the program,
+    /// without specifying the exact library.
+    ///
+    /// Corresponds to `dlopen(NULL, RTLD_NOW)`.
+    #[inline]
+    pub fn this() -> Library {
+        Library::open(None::<&OsStr>, RTLD_NOW).unwrap()
+    }
+
+    /// Find and load a shared library (module).
+    ///
+    /// Locations where library is searched for is platform specific and can’t be adjusted
+    /// portably.
+    ///
+    /// If the `filename` is None, null pointer is passed to `dlopen`.
+    ///
+    /// Corresponds to `dlopen(filename, flags)`.
+    pub fn open<P>(filename: Option<P>, flags: raw::c_int) -> ::Result<Library>
     where P: AsRef<OsStr> {
         let filename = match filename {
             None => None,
@@ -83,40 +113,23 @@ impl Library {
         ))
     }
 
-    /// Find and load a shared library (module).
+    /// Get a pointer to function or static variable by symbol name.
     ///
-    /// Locations where library is searched for is platform specific and can’t be adjusted
-    /// portably.
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
+    /// terminated `symbol` may avoid a string allocation in some cases.
     ///
-    /// Corresponds to `dlopen(filename)`.
-    #[inline]
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
-        Library::open(Some(filename), RTLD_LAZY)
-    }
-
-    /// Load the dynamic libraries linked into main program.
-    ///
-    /// This allows retrieving symbols from any **dynamic** library linked into the program,
-    /// without specifying the exact library.
-    ///
-    /// Corresponds to `dlopen(NULL)`.
-    #[inline]
-    pub fn this() -> Library {
-        Library::open(None::<&OsStr>, RTLD_NOW).unwrap()
-    }
-
-    /// Get a symbol by name.
-    ///
-    /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work.
-    ///
-    /// You may append a null byte at the end of the byte string to avoid string allocation in some
-    /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
+    /// most likely invalid.
     ///
     /// # Unsafety
     ///
-    /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
-    /// memory safe.
+    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
+    /// undefined.
+    ///
+    /// # Platform-specific behaviour
+    ///
+    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
+    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         let symbol = try!(CowCString::from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
@@ -214,7 +227,6 @@ extern {
     fn dladdr(addr: *mut raw::c_void, info: *mut DlInfo) -> raw::c_int;
 }
 
-const RTLD_LAZY: raw::c_int = 1;
 #[cfg(not(target_os="android"))]
 const RTLD_NOW: raw::c_int = 2;
 #[cfg(target_os="android")]
