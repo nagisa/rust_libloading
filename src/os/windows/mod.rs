@@ -18,9 +18,6 @@ unsafe impl ::std::marker::Send for Library {}
 impl Library {
     /// Find and load a shared library (module).
     ///
-    /// Locations where library is searched for is platform specific and can’t be adjusted
-    /// portably.
-    ///
     /// Corresponds to `LoadLibraryW(filename)`.
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
