@@ -201,6 +201,17 @@ impl<'lib, T> Symbol<'lib, T> {
     /// Using this function relinquishes all the lifetime guarantees. It is up to programmer to
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    /// # use ::libloading::{Library, Symbol};
+    /// let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// unsafe {
+    ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol = symbol.into_raw();
+    /// }
+    /// ```
     pub unsafe fn into_raw(self) -> imp::Symbol<T> {
         self.inner
     }
@@ -214,6 +225,18 @@ impl<'lib, T> Symbol<'lib, T> {
     ///
     /// It is invalid to provide a reference to any other value other than the library the `sym`
     /// was loaded from. Doing so invalidates any lifetime guarantees.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    /// # use ::libloading::{Library, Symbol};
+    /// let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// unsafe {
+    ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol = symbol.into_raw();
+    ///     let symbol = Symbol::from_raw(symbol, &lib);
+    /// }
+    /// ```
     pub unsafe fn from_raw<L>(sym: imp::Symbol<T>, _: &'lib L) -> Symbol<'lib, T> {
         Symbol {
             inner: sym,

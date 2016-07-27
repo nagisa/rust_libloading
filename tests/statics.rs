@@ -26,7 +26,8 @@ fn test_static_ptr() {
     }
 }
 
-#[cfg(tested_by_yours_truly)]
+#[cfg(any(windows, target_os="linux"))]
+#[cfg(test_nightly)]
 #[test]
 fn test_tls_static() {
     let lib = Library::new(LIBPATH).unwrap();
