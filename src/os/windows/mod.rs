@@ -77,6 +77,24 @@ impl Library {
             panic!("GetProcAddress failed but GetLastError did not report the error")
         ))
     }
+
+    /// Get a pointer to function or static variable by ordinal number.
+    pub unsafe fn get_ordinal<T>(&self, ordinal: winapi::WORD) -> ::Result<Symbol<T>> {
+        with_get_last_error(|| {
+            let ordinal = ordinal as usize as *mut _;
+            let symbol = kernel32::GetProcAddress(self.0, ordinal);
+            if symbol.is_null() {
+                None
+            } else {
+                Some(Symbol {
+                    pointer: symbol,
+                    pd: marker::PhantomData
+                })
+            }
+        }).map_err(|e| e.unwrap_or_else(||
+            panic!("GetProcAddress failed but GetLastError did not report the error")
+        ))
+    }
 }
 
 impl Drop for Library {
