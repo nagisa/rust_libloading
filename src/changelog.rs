@@ -1,3 +1,5 @@
+//! Project changelog
+
 /// Release 0.3.0 (Date TBA)
 ///
 /// * Greatly improved documentation, especially around platform-specific behaviours;
