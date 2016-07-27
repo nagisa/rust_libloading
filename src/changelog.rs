@@ -4,6 +4,7 @@
 ///
 /// * Greatly improved documentation, especially around platform-specific behaviours;
 /// * Improved test suite by building our own library to test against;
+/// * All `Library`-ies now implement `Send`.
 /// * Added `impl From<os::platform::Library> for Library` and `impl From<Library> for
 /// os::platform::Library` allowing wrapping and extracting the platform-specific library handle;
 /// * Added methods to wrap (`Symbol::from_raw`) and unwrap (`Symbol::into_raw`) the safe `Symbol`

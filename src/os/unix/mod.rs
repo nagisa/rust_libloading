@@ -53,6 +53,8 @@ pub struct Library {
 }
 
 unsafe impl ::std::marker::Send for Library {}
+// This cannot be Sync, because with RTDL_LAZY dlsym may do relocations, which is not guaranteed to
+// be thread-safe.
 
 impl Library {
     /// Find and load a shared library (module).

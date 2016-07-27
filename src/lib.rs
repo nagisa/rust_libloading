@@ -72,6 +72,10 @@ impl Library {
     /// When a plain library filename is supplied, locations where library is searched for is
     /// platform specific and cannot be adjusted in a portable manner.
     ///
+    /// Calling this function from multiple threads is not safe if used in conjunction with
+    /// path-less filename and library search path is modified (`SetDllDirectory` function on
+    /// Windows, `{DY,}LD_LIBRARY_PATH` environment variable on UNIX).
+    ///
     /// ### Windows
     ///
     /// If the `filename` specifies a library filename without path and with extension omitted,

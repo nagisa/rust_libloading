@@ -12,9 +12,8 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(winapi::HMODULE);
 
-// There’s little documentation on Send-ability of HMODULE, but lack of warnings on the MSDN page
-// and reading http://stackoverflow.com/a/11254061, it seems like it should be fine?
 unsafe impl ::std::marker::Send for Library {}
+// This probably could implement Sync. At least I found no reason not to so far.
 
 impl Library {
     /// Find and load a shared library (module).
