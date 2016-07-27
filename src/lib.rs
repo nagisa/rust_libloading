@@ -67,12 +67,12 @@ impl Library {
     /// * Absolute path to the library;
     /// * Relative (to the current working directory) path to the library.
     ///
-    /// # Platform-specific behaviour
+    /// ## Platform-specific behaviour
     ///
     /// When a plain library filename is supplied, locations where library is searched for is
     /// platform specific and cannot be adjusted in a portable manner.
     ///
-    /// ## Windows
+    /// ### Windows
     ///
     /// If the `filename` specifies a library filename without path and with extension omitted,
     /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
@@ -82,7 +82,7 @@ impl Library {
     /// `#[thread_local]` attributes), loading the library will fail on versions prior to Windows
     /// Vista.
     ///
-    /// # Tips
+    /// ## Tips
     ///
     /// Distributing your dynamic libraries under a filename common to all platforms (e.g.
     /// `awesome.module`) allows to avoid code which has to account for platform’s conventional
@@ -92,14 +92,14 @@ impl Library {
     /// search locations combined with various quirks related to path-less filenames makes for a
     /// very flaky code.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```no_run
     /// # use ::libloading::Library;
     /// let lib = Library::new("/path/to/awesome.module").unwrap();
     /// ```
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library> {
-        imp::Library::new(filename).map(Library)
+        imp::Library::new(filename).map(From::from)
     }
 
     /// Get a pointer to function or static variable by symbol name.
@@ -110,18 +110,18 @@ impl Library {
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// # Unsafety
+    /// ## Unsafety
     ///
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.
     ///
-    /// # Platform-specific behaviour
+    /// ## Platform-specific behaviour
     ///
     /// On Linux and Windows, a TLS variable acts just like any regular static variable. OS X uses
     /// some sort of lazy initialization scheme, which makes loading TLS variables this way
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// Given a loaded library:
     ///
@@ -153,12 +153,7 @@ impl Library {
     /// };
     /// ```
     pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>> {
-        self.0.get(symbol).map(|from| {
-            Symbol {
-                inner: from,
-                pd: marker::PhantomData
-            }
-        })
+        self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
     }
 }
 
@@ -167,6 +162,19 @@ impl fmt::Debug for Library {
         self.0.fmt(f)
     }
 }
+
+impl From<imp::Library> for Library {
+    fn from(lib: imp::Library) -> Library {
+        Library(lib)
+    }
+}
+
+impl From<Library> for imp::Library {
+    fn from(lib: Library) -> imp::Library {
+        lib.0
+    }
+}
+
 
 /// Symbol from a library.
 ///
@@ -184,6 +192,34 @@ impl fmt::Debug for Library {
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
+}
+
+impl<'lib, T> Symbol<'lib, T> {
+    /// Extract the wrapped `os::platform::Symbol`.
+    ///
+    /// ## Unsafety
+    /// Using this function relinquishes all the lifetime guarantees. It is up to programmer to
+    /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
+    /// was loaded from.
+    pub unsafe fn into_raw(self) -> imp::Symbol<T> {
+        self.inner
+    }
+
+    /// Wrap the `os::platform::Symbol` into this safe wrapper.
+    ///
+    /// Note that, in order to create association between the symbol and the library this symbol
+    /// came from, this function requires reference to the library provided.
+    ///
+    /// ## Unsafety
+    ///
+    /// It is invalid to provide a reference to any other value other than the library the `sym`
+    /// was loaded from. Doing so invalidates any lifetime guarantees.
+    pub unsafe fn from_raw<L>(sym: imp::Symbol<T>, _: &'lib L) -> Symbol<'lib, T> {
+        Symbol {
+            inner: sym,
+            pd: marker::PhantomData
+        }
+    }
 }
 
 // FIXME: implement FnOnce for callable stuff instead.

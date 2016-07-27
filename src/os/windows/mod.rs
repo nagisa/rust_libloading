@@ -54,7 +54,7 @@ impl Library {
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// # Unsafety
+    /// ## Unsafety
     ///
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.

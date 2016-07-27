@@ -1,7 +1,14 @@
 /// Release 0.3.0 (Date TBA)
 ///
 /// * Greatly improved documentation, especially around platform-specific behaviours;
-/// * Improved test suite by building our own library to test against.
+/// * Improved test suite by building our own library to test against;
+/// * Added `impl From<os::platform::Library> for Library` and `impl From<Library> for
+/// os::platform::Library` allowing wrapping and extracting the platform-specific library handle;
+/// * Added methods to wrap (`Symbol::from_raw`) and unwrap (`Symbol::into_raw`) the safe `Symbol`
+/// wrapper into unsafe `os::platform::Symbol`.
+///
+/// The last two additions focus on not restricting potential usecases of this library, allowing
+/// users of the library to circumvent safety checks if need be.
 ///
 /// ## Beaking Changes
 ///
