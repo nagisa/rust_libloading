@@ -218,7 +218,10 @@ extern {
 }
 
 const RTLD_LAZY: raw::c_int = 1;
+#[cfg(not(target_os="android"))]
 const RTLD_NOW: raw::c_int = 2;
+#[cfg(target_os="android")]
+const RTLD_NOW: raw::c_int = 0;
 
 #[repr(C)]
 struct DlInfo {
