@@ -49,18 +49,18 @@ impl Library {
         ret
     }
 
-    /// Get a symbol by name.
+    /// Get a pointer to function or static variable by symbol name.
     ///
-    /// Mangling or symbol rustification is not done: trying to `get` something like `x::y`
-    /// will not work.
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
+    /// terminated `symbol` may avoid a string allocation in some cases.
     ///
-    /// You may append a null byte at the end of the byte string to avoid string allocation in some
-    /// cases. E.g. for symbol `sin` you may write `b"sin\0"` instead of `b"sin"`.
+    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
+    /// most likely invalid.
     ///
     /// # Unsafety
     ///
-    /// Symbol of arbitrary requested type is returned. Using a symbol with wrong type is not
-    /// memory safe.
+    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
+    /// undefined.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         let symbol = try!(CowCString::from_bytes(symbol));
         with_get_last_error(|| {
