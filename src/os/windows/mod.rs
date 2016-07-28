@@ -212,8 +212,3 @@ fn works_getlasterror0() {
         assert_eq!(kernel32::GetLastError(), gle())
     }
 }
-
-#[test]
-fn fails_new_kernel23() {
-    Library::new("kernel23").err().unwrap();
-}
