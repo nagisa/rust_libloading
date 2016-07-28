@@ -38,6 +38,7 @@
 //! from, preventing a common cause of undefined behaviour and memory safety problems.
 use std::ffi::OsStr;
 use std::fmt;
+use std::ops;
 use std::marker;
 
 #[cfg(unix)]
@@ -195,7 +196,6 @@ impl From<Library> for imp::Library {
 /// See [`Library::get`] for details.
 ///
 /// [`Library::get`]: ./struct.Library.html#method.get
-#[derive(Clone)]
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
@@ -252,11 +252,20 @@ impl<'lib, T> Symbol<'lib, T> {
     }
 }
 
+impl<'lib, T> Clone for Symbol<'lib, T> {
+    fn clone(&self) -> Symbol<'lib, T> {
+        Symbol {
+            inner: self.inner.clone(),
+            pd: marker::PhantomData
+        }
+    }
+}
+
 // FIXME: implement FnOnce for callable stuff instead.
-impl<'lib, T> ::std::ops::Deref for Symbol<'lib, T> {
+impl<'lib, T> ops::Deref for Symbol<'lib, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        ::std::ops::Deref::deref(&self.inner)
+        ops::Deref::deref(&self.inner)
     }
 }
 

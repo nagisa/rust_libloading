@@ -182,10 +182,15 @@ impl fmt::Debug for Library {
 ///
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
 /// `Symbol` does not outlive `Library` it comes from.
-#[derive(Clone)]
 pub struct Symbol<T> {
     pointer: *mut raw::c_void,
     pd: marker::PhantomData<T>
+}
+
+impl<T> Clone for Symbol<T> {
+    fn clone(&self) -> Symbol<T> {
+        Symbol { ..*self }
+    }
 }
 
 impl<T> ::std::ops::Deref for Symbol<T> {
