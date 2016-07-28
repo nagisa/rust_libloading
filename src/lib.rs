@@ -92,15 +92,18 @@ impl Library {
     /// `awesome.module`) allows to avoid code which has to account for platform’s conventional
     /// library filenames.
     ///
-    /// Strive to specify absolute or relative path to your library. Platform-dependent library
-    /// search locations combined with various quirks related to path-less filenames makes for a
-    /// very flaky code.
+    /// Strive to specify absolute or relative path to your library, unless system-wide libraries
+    /// are being loaded.  Platform-dependent library search locations combined with various quirks
+    /// related to path-less filenames may cause flaky code.
     ///
     /// ## Examples
     ///
     /// ```no_run
     /// # use ::libloading::Library;
-    /// let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// // Any of the following are valid.
+    /// let _ = Library::new("/path/to/awesome.module").unwrap();
+    /// let _ = Library::new("../awesome.module").unwrap();
+    /// let _ = Library::new("libsomelib.so.1").unwrap();
     /// ```
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library> {
         imp::Library::new(filename).map(From::from)
