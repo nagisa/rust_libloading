@@ -72,6 +72,11 @@ impl Library {
     }
 
     /// Get a pointer to function or static variable by ordinal number.
+    ///
+    /// ## Unsafety
+    ///
+    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
+    /// undefined.
     pub unsafe fn get_ordinal<T>(&self, ordinal: winapi::WORD) -> ::Result<Symbol<T>> {
         with_get_last_error(|| {
             let ordinal = ordinal as usize as *mut _;
