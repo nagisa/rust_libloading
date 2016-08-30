@@ -7,7 +7,7 @@ description = "A safer binding to platform’s dynamic library loading utilities
 keywords = ["dlopen", "load", "shared", "dylib"]
 license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
-documentation = "https://nagisa.github.io/rust_libloading/"
+documentation = "https://docs.rs/libloading/"
 
 [dependencies]
 lazy_static = "0.2"

@@ -15,8 +15,8 @@ functions and static variables these libraries contain.
 * [Documentation][docs]
 * [Changelog][changelog]
 
-[docs]: http://nagisa.github.io/rust_libloading/libloading/index.html
-[changelog]: http://nagisa.github.io/rust_libloading/libloading/changelog/index.html
+[docs]: https://docs.rs/libloading/
+[changelog]: https://docs.rs/libloading/*/libloading/changelog/index.html
 
 libloading is distributed under ISC (MIT-like) license.
 
