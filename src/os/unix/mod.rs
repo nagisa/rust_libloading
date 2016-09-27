@@ -53,7 +53,7 @@ pub struct Library {
 }
 
 unsafe impl ::std::marker::Send for Library {}
-// This cannot be Sync, because with RTDL_LAZY dlsym may do relocations, which is not guaranteed to
+// This cannot be Sync, because with RTLD_LAZY dlsym may do relocations, which is not guaranteed to
 // be thread-safe.
 
 impl Library {
@@ -99,7 +99,7 @@ impl Library {
                     None => ptr::null(),
                     Some(ref f) => f.cstring_ref()
                 }, flags);
-                // ensure filename livess until dlopen completes
+                // ensure filename lives until dlopen completes
                 drop(filename);
                 r
             };
