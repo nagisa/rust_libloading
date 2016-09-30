@@ -13,7 +13,20 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 pub struct Library(winapi::HMODULE);
 
 unsafe impl Send for Library {}
-// This probably could implement Sync. At least I found no reason not to so far.
+// Now, this is sort-of-tricky. MSDN documentation does not really make any claims as to safety of
+// the Win32 APIs. Sadly, whomever I asked, even current and former Microsoft employees, couldn’t
+// say for sure, whether the Win32 APIs used to implement `Library` are thread-safe or not.
+//
+// My investigation ended up with a question about thread-safety properties of the API involved
+// being sent to an internal (to MS) general question mailing-list. The conclusion of the mail is
+// as such:
+//
+// * Nobody inside MS (at least out of all the people who have seen the question) knows for
+//   sure either;
+// * However, the general consensus between MS developers is that one can rely on the API being
+//   thread-safe. In case it is not thread-safe it should be considered a bug on the Windows
+//   part. (NB: bugs filled at https://connect.microsoft.com/ against Windows Server)
+unsafe impl Sync for Library {}
 
 impl Library {
     /// Find and load a shared library (module).

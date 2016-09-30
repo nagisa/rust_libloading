@@ -57,10 +57,7 @@ mod util;
 pub type Result<T> = ::std::io::Result<T>;
 
 /// A loaded dynamic library.
-// The 2nd argument prevents Library from being Sync, this is desirable, because Windows specific
-// Library does not support Sync yet (pending investigation), so to have both Unix and Windows
-// consistent, make cross-platform Library not-Send for now.
-pub struct Library(imp::Library, ::std::marker::PhantomData<*const ()>);
+pub struct Library(imp::Library);
 
 impl Library {
     /// Find and load a dynamic library.
@@ -176,7 +173,7 @@ impl fmt::Debug for Library {
 
 impl From<imp::Library> for Library {
     fn from(lib: imp::Library) -> Library {
-        Library(lib, ::std::marker::PhantomData)
+        Library(lib)
     }
 }
 
@@ -187,6 +184,7 @@ impl From<Library> for imp::Library {
 }
 
 unsafe impl Send for Library {}
+unsafe impl Sync for Library {}
 
 /// Symbol from a library.
 ///

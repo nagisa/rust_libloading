@@ -22,10 +22,21 @@ fn check_windows_library_send() {
     assert_send::<libloading::os::windows::Library>();
 }
 
+#[test]
+fn check_library_sync() {
+    assert_sync::<libloading::Library>();
+}
+
 #[cfg(unix)]
 #[test]
 fn check_unix_library_sync() {
     assert_sync::<libloading::os::unix::Library>();
+}
+
+#[cfg(windows)]
+#[test]
+fn check_windows_library_sync() {
+    assert_sync::<libloading::os::windows::Library>();
 }
 
 #[test]

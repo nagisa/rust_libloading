@@ -4,7 +4,7 @@
 ///
 /// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Send` where `T: Send`;
 /// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Sync` where `T: Sync`;
-/// * `os::unix::Library` now implements `Sync`;
+/// * `Library` and `os::*::Library` now implement `Sync` (they were `Send` in 0.3.0 already).
 pub mod r0_3_1 {}
 
 /// Release 0.3.0 (2016-07-27)
