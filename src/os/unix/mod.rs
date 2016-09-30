@@ -53,8 +53,22 @@ pub struct Library {
 }
 
 unsafe impl ::std::marker::Send for Library {}
-// This cannot be Sync, because with RTLD_LAZY dlsym may do relocations, which is not guaranteed to
-// be thread-safe.
+
+// That being said... this section in the volume 2 of POSIX.1-2008 states:
+//
+// > All functions defined by this volume of POSIX.1-2008 shall be thread-safe, except that the
+// > following functions need not be thread-safe.
+//
+// With notable absence of any dl* function other than dlerror in the list. By “this volume”
+// I suppose they refer precisely to the “volume 2”. dl* family of functions are specified
+// by this same volume, so the conclusion is indeed that dl* functions are required by POSIX
+// to be thread-safe. Great!
+//
+// See for more details:
+//
+//  * https://github.com/nagisa/rust_libloading/pull/17
+//  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_01
+unsafe impl ::std::marker::Sync for Library {}
 
 impl Library {
     /// Find and load a shared library (module).
