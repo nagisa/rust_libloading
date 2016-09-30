@@ -1,5 +1,12 @@
 //! Project changelog
 
+/// Release 0.3.1 (TBA)
+///
+/// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Send` where `T: Send`;
+/// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Sync` where `T: Sync`;
+/// * `os::unix::Library` now implements `Sync`;
+pub mod r0_3_1 {}
+
 /// Release 0.3.0 (2016-07-27)
 ///
 /// * Greatly improved documentation, especially around platform-specific behaviours;

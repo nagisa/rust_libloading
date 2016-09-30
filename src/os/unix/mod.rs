@@ -52,7 +52,7 @@ pub struct Library {
     handle: *mut raw::c_void
 }
 
-unsafe impl ::std::marker::Send for Library {}
+unsafe impl Send for Library {}
 
 // That being said... this section in the volume 2 of POSIX.1-2008 states:
 //
@@ -68,7 +68,7 @@ unsafe impl ::std::marker::Send for Library {}
 //
 //  * https://github.com/nagisa/rust_libloading/pull/17
 //  * http://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_01
-unsafe impl ::std::marker::Sync for Library {}
+unsafe impl Sync for Library {}
 
 impl Library {
     /// Find and load a shared library (module).
@@ -201,7 +201,8 @@ pub struct Symbol<T> {
     pd: marker::PhantomData<T>
 }
 
-unsafe impl<T> ::std::marker::Sync for Symbol<T> {}
+unsafe impl<T: Send> Send for Symbol<T> {}
+unsafe impl<T: Sync> Sync for Symbol<T> {}
 
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Symbol<T> {

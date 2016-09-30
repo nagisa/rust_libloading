@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(winapi::HMODULE);
 
-unsafe impl ::std::marker::Send for Library {}
+unsafe impl Send for Library {}
 // This probably could implement Sync. At least I found no reason not to so far.
 
 impl Library {
@@ -132,7 +132,8 @@ pub struct Symbol<T> {
     pd: marker::PhantomData<T>
 }
 
-unsafe impl<T> ::std::marker::Sync for Symbol<T> {}
+unsafe impl<T: Send> Send for Symbol<T> {}
+unsafe impl<T: Sync> Sync for Symbol<T> {}
 
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Symbol<T> {
