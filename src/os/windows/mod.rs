@@ -13,7 +13,8 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 pub struct Library(winapi::HMODULE);
 
 unsafe impl ::std::marker::Send for Library {}
-// This probably could implement Sync. At least I found no reason not to so far.
+
+unsafe impl ::std::marker::Sync for Library {}
 
 impl Library {
     /// Find and load a shared library (module).
@@ -131,6 +132,8 @@ pub struct Symbol<T> {
     pointer: winapi::FARPROC,
     pd: marker::PhantomData<T>
 }
+
+unsafe impl<T> ::std::marker::Sync for Symbol<T> {}
 
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Symbol<T> {
