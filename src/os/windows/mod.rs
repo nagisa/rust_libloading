@@ -132,6 +132,8 @@ pub struct Symbol<T> {
     pd: marker::PhantomData<T>
 }
 
+unsafe impl<T> ::std::marker::Sync for Symbol<T> {}
+
 impl<T> Clone for Symbol<T> {
     fn clone(&self) -> Symbol<T> {
         Symbol { ..*self }
