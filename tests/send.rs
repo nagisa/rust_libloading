@@ -1,12 +1,9 @@
 extern crate libloading;
 
-use libloading::Symbol;
+use libloading::{Library, Symbol};
 
-#[cfg(unix)]
 #[test]
 fn check_library_sync() {
-	use libloading::Library;
-
     fn send<S: Sync>(_: Option<S>) {}
     send::<Library>(None);
 }
