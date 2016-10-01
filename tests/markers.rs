@@ -55,7 +55,7 @@ fn check_unix_symbol_send() {
 #[cfg(windows)]
 #[test]
 fn check_windows_symbol_send() {
-    assert_send::<libloading::os::windows::Symbol>();
+    assert_send::<libloading::os::windows::Symbol<fn() -> ()>>();
 }
 
 #[test]
