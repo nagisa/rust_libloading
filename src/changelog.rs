@@ -1,6 +1,6 @@
 //! Project changelog
 
-/// Release 0.3.1 (TBA)
+/// Release 0.3.1 (2016-10-01)
 ///
 /// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Send` where `T: Send`;
 /// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Sync` where `T: Sync`;
