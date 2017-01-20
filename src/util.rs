@@ -1,12 +1,19 @@
-use std::ffi::{CString, NulError};
+use std::ffi::{CStr, CString, NulError, FromBytesWithNulError};
+use std::borrow::Cow;
 use std::os::raw;
 
 #[derive(Debug)]
-pub struct NullError(usize);
+pub struct NullError;
 
 impl From<NulError> for NullError {
-    fn from(e: NulError) -> NullError {
-        NullError(e.nul_position())
+    fn from(_: NulError) -> NullError {
+        NullError
+    }
+}
+
+impl From<FromBytesWithNulError> for NullError {
+    fn from(_: FromBytesWithNulError) -> NullError {
+        NullError
     }
 }
 
@@ -22,52 +29,21 @@ impl ::std::error::Error for NullError {
 
 impl ::std::fmt::Display for NullError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "non-final null byte at {}", self.0)
+        write!(f, "non-final null byte found")
     }
 }
 
-pub enum CowCString<'a> {
-    Owned(CString),
-    Ref(&'a raw::c_char)
-}
-
-impl<'a> CowCString<'a> {
-    /// Checks for last byte and avoids alocatting if its zero.
-    ///
-    /// Non-last null bytes still result in an error.
-    pub fn from_bytes(slice: &'a [u8]) -> Result<CowCString<'a>, NullError> {
-        Ok(if slice.len() == 0 {
-            static ZERO: raw::c_char = 0;
-            CowCString::Ref(&ZERO)
-        } else if let Some(&0) = slice.last() {
-            // check for inner nulls
-            for (c, i) in slice.iter().zip(0..slice.len()-2) {
-                if *c == 0 {
-                    return Err(NullError(i));
-                }
-            }
-            CowCString::Ref(unsafe {::std::mem::transmute(slice.get_unchecked(0))})
-        } else {
-            CowCString::Owned(try!(CString::new(slice)))
-        })
-    }
-}
-
-pub trait CStringAsRef {
-    fn cstring_ref(&self) -> &raw::c_char;
-}
-
-impl CStringAsRef for CString {
-    fn cstring_ref(&self) -> &raw::c_char {
-        unsafe { &*self.as_ptr() }
-    }
-}
-
-impl<'a> CStringAsRef for CowCString<'a> {
-    fn cstring_ref(&self) -> &raw::c_char {
-        match *self {
-            CowCString::Ref(r) => r,
-            CowCString::Owned(ref o) => o.cstring_ref()
-        }
-    }
+/// Checks for last byte and avoids alocatting if its zero.
+///
+/// Non-last null bytes still result in an error.
+pub fn cstr_cow_from_bytes<'a>(slice: &'a [u8]) -> Result<Cow<'a, CStr>, NullError> {
+    static ZERO: raw::c_char = 0;
+    Ok(match slice.last() {
+        // Slice out of 0 elements
+        None => unsafe { Cow::Borrowed(CStr::from_ptr(&ZERO)) },
+        // Slice with trailing 0
+        Some(&0) => Cow::Borrowed(try!(CStr::from_bytes_with_nul(slice))),
+        // Slice with no trailing 0
+        Some(_) => Cow::Owned(try!(CString::new(slice))),
+    })
 }

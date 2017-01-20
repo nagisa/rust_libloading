@@ -1,5 +1,10 @@
 //! Project changelog
 
+/// Release TBD
+///
+/// * Minimum version required is now rustc 1.10.0;
+/// * ...
+
 /// Release 0.3.1 (2016-10-01)
 ///
 /// * `Symbol<T>` and `os::*::Symbol<T>` now implement `Send` where `T: Send`;

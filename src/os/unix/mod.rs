@@ -1,4 +1,4 @@
-use util::{CowCString, CStringAsRef};
+use util::cstr_cow_from_bytes;
 
 use std::ffi::{CStr, OsStr};
 use std::{fmt, io, marker, mem, ptr};
@@ -105,13 +105,13 @@ impl Library {
     where P: AsRef<OsStr> {
         let filename = match filename {
             None => None,
-            Some(ref f) => Some(try!(CowCString::from_bytes(f.as_ref().as_bytes()))),
+            Some(ref f) => Some(try!(cstr_cow_from_bytes(f.as_ref().as_bytes()))),
         };
         with_dlerror(move || {
             let result = unsafe {
                 let r = dlopen(match filename {
                     None => ptr::null(),
-                    Some(ref f) => f.cstring_ref()
+                    Some(ref f) => f.as_ptr()
                 }, flags);
                 // ensure filename lives until dlopen completes
                 drop(filename);
@@ -147,7 +147,7 @@ impl Library {
     /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
-        let symbol = try!(CowCString::from_bytes(symbol));
+        let symbol = try!(cstr_cow_from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
@@ -156,7 +156,7 @@ impl Library {
         // fully prevent it.
         match with_dlerror(|| {
             dlerror();
-            let symbol = dlsym(self.handle, symbol.cstring_ref());
+            let symbol = dlsym(self.handle, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {

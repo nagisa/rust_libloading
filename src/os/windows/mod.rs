@@ -1,7 +1,7 @@
 extern crate winapi;
 extern crate kernel32;
 
-use util::{CowCString, CStringAsRef};
+use util::cstr_cow_from_bytes;
 
 use std::ffi::{OsStr, OsString};
 use std::{fmt, io, marker, mem, ptr};
@@ -68,9 +68,9 @@ impl Library {
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
-        let symbol = try!(CowCString::from_bytes(symbol));
+        let symbol = try!(cstr_cow_from_bytes(symbol));
         with_get_last_error(|| {
-            let symbol = kernel32::GetProcAddress(self.0, symbol.cstring_ref());
+            let symbol = kernel32::GetProcAddress(self.0, symbol.as_ptr());
             if symbol.is_null() {
                 None
             } else {
