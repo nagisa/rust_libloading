@@ -1,9 +1,10 @@
 //! Project changelog
 
-/// Release TBD
+/// Release 0.3.2 (2017-02-10)
 ///
-/// * Minimum version required is now rustc 1.10.0;
-/// * ...
+/// * Minimum version required is now rustc 1.12.0;
+/// * Updated dependency versions (most notably target_build_utils to 0.3.0)
+pub mod r0_3_2 {}
 
 /// Release 0.3.1 (2016-10-01)
 ///

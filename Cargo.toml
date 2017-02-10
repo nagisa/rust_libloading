@@ -1,7 +1,7 @@
 [package]
 name = "libloading"
-version = "0.3.1"
-authors = ["Simonas Kazlauskas <git@kazlauskas.me>"]
+version = "0.3.2"
+authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 build = "build.rs"
 description = "A safer binding to platform’s dynamic library loading utilities"
 keywords = ["dlopen", "load", "shared", "dylib"]
@@ -17,4 +17,4 @@ winapi = "0.2"
 kernel32-sys = "0.2"
 
 [build-dependencies]
-target_build_utils = "0.2"
+target_build_utils = "0.3"
