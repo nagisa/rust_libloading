@@ -1,5 +1,11 @@
 //! Project changelog
 
+/// Release 0.3.3 (2017-03-25)
+///
+/// * Panics when `Library::get` is called for incompatibly sized type such as named function
+///   types (which are zero-sized).
+pub mod r0_3_3 {}
+
 /// Release 0.3.2 (2017-02-10)
 ///
 /// * Minimum version required is now rustc 1.12.0;
