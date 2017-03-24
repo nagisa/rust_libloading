@@ -71,3 +71,15 @@ fn test_incompatible_type() {
         let _ = lib.get::<()>(b"test_identity_u32\0");
     }
 }
+
+#[test]
+#[should_panic]
+fn test_incompatible_type_named_fn() {
+    unsafe fn get<'a, T>(l: &'a Library, _: T) -> libloading::Result<Symbol<'a, T>> {
+        l.get::<T>(b"test_identity_u32\0")
+    }
+    let lib = Library::new(LIBPATH).unwrap();
+    unsafe {
+        let _ = get(&lib, test_incompatible_type_named_fn);
+    }
+}
