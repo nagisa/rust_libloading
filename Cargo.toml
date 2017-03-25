@@ -1,6 +1,6 @@
 [package]
 name = "libloading"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 build = "build.rs"
 description = "A safer binding to platform’s dynamic library loading utilities"

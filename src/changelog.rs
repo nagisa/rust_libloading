@@ -1,5 +1,10 @@
 //! Project changelog
 
+/// Release 0.3.4 (2017-03-25)
+///
+/// * Remove rogue println!
+pub mod r0_3_4 {}
+
 /// Release 0.3.3 (2017-03-25)
 ///
 /// * Panics when `Library::get` is called for incompatibly sized type such as named function

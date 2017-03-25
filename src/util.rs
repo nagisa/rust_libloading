@@ -55,8 +55,6 @@ pub fn ensure_compatible_types<T, E>() {
     fn dopanic() {
         panic!("value of requested type cannot be dynamically loaded");
     }
-
-    println!("{:?}", ::std::mem::size_of::<T>());
     if ::std::mem::size_of::<T>() != ::std::mem::size_of::<E>() {
         dopanic()
     }
