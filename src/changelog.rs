@@ -1,5 +1,11 @@
 //! Project changelog
 
+/// Release 0.x.y (2017-05-01)
+///
+/// * Remove build-time dependency on target_build_utils (and by extension serde/phf);
+/// * Require at least version 1.14.0 of rustc to build;
+pub mod r0_x_y {}
+
 /// Release 0.3.4 (2017-03-25)
 ///
 /// * Remove rogue println!
