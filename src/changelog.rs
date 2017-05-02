@@ -1,10 +1,12 @@
 //! Project changelog
 
-/// Release 0.x.y (2017-05-01)
+/// Release 0.4.0 (2017-05-01)
 ///
 /// * Remove build-time dependency on target_build_utils (and by extension serde/phf);
 /// * Require at least version 1.14.0 of rustc to build;
-pub mod r0_x_y {}
+///   * Actually, it is cargo which has to be more recent here. The one shipped with rustc 1.14.0
+///     is what’s being required from now on.
+pub mod r0_4_0 {}
 
 /// Release 0.3.4 (2017-03-25)
 ///
