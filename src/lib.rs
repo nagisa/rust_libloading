@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libloading = "0.3"
+//! libloading = "0.4"
 //! ```
 //!
 //! Then inside your project
