@@ -26,9 +26,9 @@
 //! extern crate libloading as lib;
 //!
 //! fn call_dynamic() -> lib::Result<u32> {
-//!     let lib = try!(lib::Library::new("/path/to/liblibrary.so"));
+//!     let lib = lib::Library::new("/path/to/liblibrary.so")?;
 //!     unsafe {
-//!         let func: lib::Symbol<unsafe extern fn() -> u32> = try!(lib.get(b"my_func"));
+//!         let func: lib::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
 //!         Ok(func())
 //!     }
 //! }
