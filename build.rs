@@ -10,6 +10,7 @@ fn main(){
         // found any libraries that have to be linked to on other platforms.
         // What happens if the executable is not linked up dynamically?
         Ok("openbsd") | Ok("bitrig") | Ok("netbsd") | Ok("macos") | Ok("ios") => {}
+        Ok("solaris") => {}
         // dependencies come with winapi
         Ok("windows") => {}
         tos => {
