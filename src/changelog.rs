@@ -1,5 +1,11 @@
 //! Project changelog
 
+
+/// Release 0.4.1 (2017-08-29)
+///
+/// * Solaris support
+pub mod r0_4_1 {}
+
 /// Release 0.4.0 (2017-05-01)
 ///
 /// * Remove build-time dependency on target_build_utils (and by extension serde/phf);
