@@ -177,19 +177,27 @@ static USE_ERRORMODE: AtomicBool = ATOMIC_BOOL_INIT;
 struct ErrorModeGuard(winapi::DWORD);
 
 impl ErrorModeGuard {
-    fn new() -> ErrorModeGuard {
-        let mut ret = ErrorModeGuard(0);
-
+    fn new() -> Option<ErrorModeGuard> {
+        const SEM_FAILCE: winapi::DWORD = 1;
         if !USE_ERRORMODE.load(Ordering::Acquire) {
-            if unsafe { kernel32::SetThreadErrorMode(1, &mut ret.0) == 0
-                        && kernel32::GetLastError() == winapi::ERROR_CALL_NOT_IMPLEMENTED } {
-                USE_ERRORMODE.store(true, Ordering::Release);
-            } else {
-                return ret;
-            }
+            let result = unsafe {
+                let previous_mode = 0;
+                let success = kernel32::SetThreadErrorMode(SEM_FAILCE, &mut previous_mode) != 0;
+                if !success && kernel32::GetLastError() == winapi::ERROR_CALL_NOT_IMPLEMENTED {
+                    USE_ERRORMODE.store(true, Ordering::Release);
+                } else if !success {
+                    // SetThreadErrorMode failed with some other error? How in the world is it
+                    // possible for what is essentially a simple variable swap to fail?
+                    // For now we just ignore the error -- the worst that can happen here is
+                    // the previous mode staying on and user seeing a dialog error on older Windows
+                    // machines.
+                    return None;
+                } else {
+                    return Some(ErrorModeGuard(previous_mode));
+                }
+            };
         }
-        ret.0 = unsafe { kernel32::SetErrorMode(1) };
-        ret
+        Some(ErrorModeGuard(unsafe { kernel32::SetErrorMode(SEM_FAILCE) }))
     }
 }
 
