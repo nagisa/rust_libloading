@@ -179,9 +179,9 @@ struct ErrorModeGuard(winapi::DWORD);
 impl ErrorModeGuard {
     fn new() -> Option<ErrorModeGuard> {
         const SEM_FAILCE: winapi::DWORD = 1;
-        if !USE_ERRORMODE.load(Ordering::Acquire) {
-            let result = unsafe {
-                let previous_mode = 0;
+        unsafe {
+            if !USE_ERRORMODE.load(Ordering::Acquire) {
+                let mut previous_mode = 0;
                 let success = kernel32::SetThreadErrorMode(SEM_FAILCE, &mut previous_mode) != 0;
                 if !success && kernel32::GetLastError() == winapi::ERROR_CALL_NOT_IMPLEMENTED {
                     USE_ERRORMODE.store(true, Ordering::Release);
@@ -192,12 +192,32 @@ impl ErrorModeGuard {
                     // the previous mode staying on and user seeing a dialog error on older Windows
                     // machines.
                     return None;
+                } else if previous_mode == SEM_FAILCE {
+                    return None;
                 } else {
                     return Some(ErrorModeGuard(previous_mode));
                 }
-            };
+            }
+            match kernel32::SetErrorMode(SEM_FAILCE) {
+                SEM_FAILCE => {
+                    // This is important to reduce racy-ness when this library is used on multiple
+                    // threads. In particular this helps with following race condition:
+                    //
+                    // T1: SetErrorMode(SEM_FAILCE)
+                    // T2: SetErrorMode(SEM_FAILCE)
+                    // T1: SetErrorMode(old_mode) # not SEM_FAILCE
+                    // T2: SetErrorMode(SEM_FAILCE) # restores to SEM_FAILCE on drop
+                    //
+                    // This is still somewhat racy in a sense that T1 might resture the error
+                    // mode before T2 finishes loading the library, but that is less of a
+                    // concern – it will only end up in end user seeing a dialog.
+                    //
+                    // Also, SetErrorMode itself is probably not an atomic operation.
+                    None
+                }
+                a => Some(ErrorModeGuard(a))
+            }
         }
-        Some(ErrorModeGuard(unsafe { kernel32::SetErrorMode(SEM_FAILCE) }))
     }
 }
 
