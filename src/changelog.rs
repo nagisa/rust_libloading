@@ -6,7 +6,7 @@
 /// * Improved error and race-condition handling on Windows;
 /// * Improved documentation about thread-safety of Library;
 /// * Added Symbol::<Option<T>::lift_option() -> Option<Symbol<T>> convenience method.
-pub mod r0_4_1 {}
+pub mod r0_4_2 {}
 
 
 /// Release 0.4.1 (2017-08-29)
