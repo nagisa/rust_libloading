@@ -68,14 +68,26 @@ impl Library {
     /// * Absolute path to the library;
     /// * Relative (to the current working directory) path to the library.
     ///
-    /// ## Platform-specific behaviour
+    /// ## Thread-safety
     ///
-    /// When a plain library filename is supplied, locations where library is searched for is
-    /// platform specific and cannot be adjusted in a portable manner.
+    /// The implementation strives to be as MT-safe as sanely possible, however due to certain
+    /// error-handling related resources not always being safe, this library is not MT-safe either.
+    ///
+    /// * On Windows Vista and earlier error handling falls back to [`SetErrorMode`], which is not
+    ///   MT-safe. MT-scenarios involving this function may cause a traditional data race;
+    /// * On some UNIX targets `dlerror` might not be MT-safe, resulting in garbage error messages
+    ///   in certain MT-scenarios.
+    ///
+    /// [`SetErrorMode`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms680621(v=vs.85).aspx
     ///
     /// Calling this function from multiple threads is not safe if used in conjunction with
     /// path-less filename and library search path is modified (`SetDllDirectory` function on
     /// Windows, `{DY,}LD_LIBRARY_PATH` environment variable on UNIX).
+    ///
+    /// ## Platform-specific behaviour
+    ///
+    /// When a plain library filename is supplied, locations where library is searched for is
+    /// platform specific and cannot be adjusted in a portable manner.
     ///
     /// ### Windows
     ///

@@ -30,7 +30,7 @@ where F: FnOnce() -> Option<T> {
         // This code will only get executed if the `closure` returns `None`.
         let error = dlerror();
         if error.is_null() {
-            // In non-dlsym case this may happen when there’s bugs in our bindings or there’s
+            // In non-dlsym case this may happen when there’re bugs in our bindings or there’s
             // non-libloading user of libdl; possibly in another thread.
             None
         } else {
