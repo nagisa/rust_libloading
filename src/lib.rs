@@ -266,6 +266,27 @@ impl<'lib, T> Symbol<'lib, T> {
     }
 }
 
+impl<'lib, T> Symbol<'lib, Option<T>> {
+    /// Lift Option out of the symbol.
+    ///
+    /// ## Examples
+    ///
+    /// ```no_run
+    /// # use ::libloading::{Library, Symbol};
+    /// let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// unsafe {
+    ///     let symbol: Symbol<Option<*mut u32>> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol: Symbol<*mut u32> = symbol.lift_option().expect("static is not null");
+    /// }
+    /// ```
+    pub fn lift_option(self) -> Option<Symbol<'lib, T>> {
+        self.inner.lift_option().map(|is| Symbol {
+            inner: is,
+            pd: marker::PhantomData,
+        })
+    }
+}
+
 impl<'lib, T> Clone for Symbol<'lib, T> {
     fn clone(&self) -> Symbol<'lib, T> {
         Symbol {

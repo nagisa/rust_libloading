@@ -202,6 +202,20 @@ pub struct Symbol<T> {
     pd: marker::PhantomData<T>
 }
 
+impl<T> Symbol<Option<T>> {
+    /// Lift Option out of the symbol.
+    pub fn lift_option(self) -> Option<Symbol<T>> {
+        if self.pointer.is_null() {
+            None
+        } else {
+            Some(Symbol {
+                pointer: self.pointer,
+                pd: marker::PhantomData,
+            })
+        }
+    }
+}
+
 unsafe impl<T: Send> Send for Symbol<T> {}
 unsafe impl<T: Sync> Sync for Symbol<T> {}
 
