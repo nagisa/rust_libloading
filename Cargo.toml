@@ -10,7 +10,7 @@ repository = "https://github.com/nagisa/rust_libloading/"
 documentation = "https://docs.rs/libloading/"
 
 [dependencies]
-lazy_static = "0.2"
+lazy_static = "1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
