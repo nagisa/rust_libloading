@@ -12,6 +12,10 @@ documentation = "https://docs.rs/libloading/"
 [dependencies]
 lazy_static = "1"
 
-[target.'cfg(windows)'.dependencies]
-winapi = "0.2"
-kernel32-sys = "0.2"
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = [
+    "winerror",
+    "errhandlingapi",
+    "libloaderapi",
+]
