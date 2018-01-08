@@ -1,8 +1,11 @@
+extern crate cc;
+
 use std::io::Write;
 use std::env;
 
 fn main(){
     let target_os = env::var("CARGO_CFG_TARGET_OS");
+    let is_unix = env::var_os("CARGO_CFG_UNIX").is_some();
     match target_os.as_ref().map(|x| &**x) {
         Ok("linux") | Ok("android") => println!("cargo:rustc-link-lib=dl"),
         Ok("freebsd") | Ok("dragonfly") => println!("cargo:rustc-link-lib=c"),
@@ -19,5 +22,10 @@ fn main(){
                      tos).expect("could not report the error");
             ::std::process::exit(0xfc);
         }
+    }
+    if is_unix {
+        cc::Build::new()
+            .file("src/os/unix/global_static.c")
+            .compile("global_static");
     }
 }

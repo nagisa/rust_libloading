@@ -42,10 +42,6 @@ use std::ops;
 use std::marker;
 
 #[cfg(unix)]
-#[macro_use]
-extern crate lazy_static;
-
-#[cfg(unix)]
 use self::os::unix as imp;
 #[cfg(windows)]
 use self::os::windows as imp;

@@ -4,10 +4,29 @@ use std::ffi::{CStr, OsStr};
 use std::{fmt, io, marker, mem, ptr};
 use std::os::raw;
 use std::os::unix::ffi::OsStrExt;
-use std::sync::Mutex;
 
-lazy_static! {
-    static ref DLERROR_MUTEX: Mutex<()> = Mutex::new(());
+extern "C" {
+    fn rust_libloading_dlerror_mutex_lock();
+    fn rust_libloading_dlerror_mutex_unlock();
+}
+
+struct DlerrorMutexGuard(());
+
+impl DlerrorMutexGuard {
+    fn new() -> DlerrorMutexGuard {
+        unsafe {
+            rust_libloading_dlerror_mutex_lock();
+        }
+        DlerrorMutexGuard(())
+    }
+}
+
+impl Drop for DlerrorMutexGuard {
+    fn drop(&mut self) {
+        unsafe {
+            rust_libloading_dlerror_mutex_unlock();
+        }
+    }
 }
 
 // libdl is crazy.
@@ -19,7 +38,7 @@ fn with_dlerror<T, F>(closure: F) -> Result<T, Option<io::Error>>
 where F: FnOnce() -> Option<T> {
     // We will guard all uses of libdl library with our own mutex. This makes libdl
     // safe to use in MT programs provided the only way a program uses libdl is via this library.
-    let _lock = DLERROR_MUTEX.lock();
+    let _lock = DlerrorMutexGuard::new();
     // While we could could call libdl here to clear the previous error value, only the dlsym
     // depends on it being cleared beforehand and only in some cases too. We will instead clear the
     // error inside the dlsym binding instead.
