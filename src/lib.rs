@@ -46,58 +46,6 @@ use self::os::unix as imp;
 #[cfg(windows)]
 use self::os::windows as imp;
 
-// When running on an unsupported OS, libloading will compile but panic on any calls.
-#[cfg(not(any(unix, windows)))]
-mod imp {
-    use std::{fmt, marker};
-    use std::ffi::OsStr;
-
-    pub struct Library;
-
-    impl Library {
-        pub fn new<P: AsRef<OsStr>>(_filename: P) -> ::Result<Self> {
-            unimplemented!()
-        }
-
-        pub unsafe fn get<T>(&self, _symbol: &[u8]) -> ::Result<Symbol<T>> {
-            unimplemented!()
-        }
-    }
-
-    impl fmt::Debug for Library {
-        fn fmt(&self, _fmt: &mut fmt::Formatter) -> fmt::Result {
-            unimplemented!()
-        }
-    }
-
-    pub struct Symbol<T>(marker::PhantomData<T>);
-
-    impl<T> Symbol<Option<T>> {
-        pub fn lift_option(self) -> Option<Symbol<T>> {
-            unimplemented!()
-        }
-    }
-
-    impl<T> Clone for Symbol<T> {
-        fn clone(&self) -> Self {
-            unimplemented!()
-        }
-    }
-
-    impl<T> fmt::Debug for Symbol<T> {
-        fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-            unimplemented!()
-        }
-    }
-
-    impl<T> ::std::ops::Deref for Symbol<T> {
-        type Target = T;
-        fn deref(&self) -> &T {
-            unimplemented!()
-        }
-    }
-}
-
 pub mod os;
 pub mod changelog;
 mod util;
