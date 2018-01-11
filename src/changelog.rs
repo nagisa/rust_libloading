@@ -1,8 +1,22 @@
 //! Project changelog
 
+/// Release 0.5.0 (2018-01-11)
+///
+/// * Update to `winapi = ^0.3`;
+///
+/// ## Breaking changes
+///
+/// * libloading now requires a C compiler to build on UNIX;
+///   * This is a temporary measure until the [`linkage`] attribute is stablised;
+///   * Necessary to resolve [#32].
+///
+/// [`linkage`]: https://github.com/rust-lang/rust/issues/29603
+/// [#32]: https://github.com/nagisa/rust_libloading/issues/32
+pub mod r0_5_0 {}
+
 /// Release 0.4.3 (2017-12-07)
 ///
-/// * Bump lazy-static dependency to `^1.0`
+/// * Bump lazy-static dependency to `^1.0`;
 /// * `cargo test --release` now works when testing libloading.
 pub mod r0_4_3 {}
 
