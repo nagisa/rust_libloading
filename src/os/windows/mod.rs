@@ -225,7 +225,7 @@ impl ErrorModeGuard {
                     // T1: SetErrorMode(old_mode) # not SEM_FAILCE
                     // T2: SetErrorMode(SEM_FAILCE) # restores to SEM_FAILCE on drop
                     //
-                    // This is still somewhat racy in a sense that T1 might resture the error
+                    // This is still somewhat racy in a sense that T1 might restore the error
                     // mode before T2 finishes loading the library, but that is less of a
                     // concern – it will only end up in end user seeing a dialog.
                     //
