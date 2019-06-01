@@ -1,5 +1,10 @@
 //! Project changelog
 
+/// Release 0.5.1 (2019-06-01)
+///
+/// * Build on Haiku targets.
+pub mod r0_5_1 {}
+
 /// Release 0.5.0 (2018-01-11)
 ///
 /// * Update to `winapi = ^0.3`;
