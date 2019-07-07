@@ -1,5 +1,10 @@
 //! Project changelog
 
+/// Release 0.5.2 (2019-07-07)
+///
+/// * Added API to convert OS-specific `Library` and `Symbol` conversion to underlying resources.
+pub mod r0_5_2 {}
+
 /// Release 0.5.1 (2019-06-01)
 ///
 /// * Build on Haiku targets.
