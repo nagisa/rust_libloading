@@ -1,5 +1,10 @@
 //! Project changelog
 
+/// Release NEXT (2020-04-??)
+///
+/// * Minimum version requirement for the compiler is now 1.36.0.
+pub mod rNEXT {}
+
 /// Release 0.5.2 (2019-07-07)
 ///
 /// * Added API to convert OS-specific `Library` and `Symbol` conversion to underlying resources.

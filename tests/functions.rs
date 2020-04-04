@@ -4,7 +4,7 @@ use libloading::{Symbol, Library};
 const LIBPATH: &'static str = concat!(env!("OUT_DIR"), "/libtest_helpers.dll");
 
 fn make_helpers() {
-    static ONCE: ::std::sync::Once = ::std::sync::ONCE_INIT;
+    static ONCE: ::std::sync::Once = ::std::sync::Once::new();
     ONCE.call_once(|| {
         let mut outpath = String::from(if let Some(od) = option_env!("OUT_DIR") { od } else { return });
         let rustc = option_env!("RUSTC").unwrap_or_else(|| { "rustc".into() });
