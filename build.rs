@@ -35,6 +35,8 @@ fn link_libraries(target_os: &str) {
         "openbsd" | "bitrig" | "netbsd" | "macos" | "ios" => {}
         "solaris" => {}
         "haiku" => {}
+        "redox" => {}
+        "fuchsia" => {}
         // dependencies come with winapi
         "windows" => {}
         tos => {
