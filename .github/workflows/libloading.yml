@@ -1,0 +1,158 @@
+name: Test libloading
+
+on:
+  push:
+    paths-ignore:
+    - '*.mkd'
+    - 'LICENSE'
+  pull_request:
+    types: [opened, repoened, synchronize]
+
+jobs:
+  native-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_toolchain: [nightly, stable, 1.14.0]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust ${{ matrix.rust_toolchain }}
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: ${{ matrix.rust_toolchain }}
+            profile: minimal
+            default: true
+      - name: Update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: --manifest-path=Cargo.toml
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path=Cargo.toml
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=Cargo.toml -- --nocapture
+      - name: Test Examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=Cargo.toml --examples -- --nocapture
+      - name: Test Release
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=Cargo.toml --release -- --nocapture
+      - name: Test Release Examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path=Cargo.toml --examples --release -- --nocapture
+
+  windows-gnu-test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_toolchain: [nightly, stable]
+        rust_target:
+          - x86_64-pc-windows-gnu
+          # Only 64 bit GCC is preinstalled
+          #- i686-pc-windows-gnu
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: ${{ matrix.rust_toolchain }}
+            target: ${{ matrix.rust_target }}
+            profile: minimal
+            default: true
+      # https://github.com/rust-lang/rust/issues/49078
+      - name: Fix windows-gnu rust-mingw
+        run : |
+          for i in crt2.o dllcrt2.o libmingwex.a libmsvcrt.a ; do
+            cp -f "/C/ProgramData/Chocolatey/lib/mingw/tools/install/mingw64/x86_64-w64-mingw32/lib/$i" "`rustc --print sysroot`/lib/rustlib/x86_64-pc-windows-gnu/lib"
+          done
+        shell: bash
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml
+
+  bare-cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_target:
+          # BSDs: could be tested with full system emulation
+          - x86_64-unknown-dragonfly
+          - x86_64-unknown-freebsd
+          - x86_64-unknown-haiku
+          - x86_64-unknown-netbsd
+          - x86_64-unknown-openbsd
+          - x86_64-unknown-redox
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust nightly
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            profile: minimal
+            default: true
+      - name: Fix-up toolchain
+        run: |
+            rustup component add rust-src --toolchain nightly --target ${{ matrix.rust_target }}
+      - name: Update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: --manifest-path=Cargo.toml
+      - name: Build ${{ matrix.rust_target }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml -Zbuild-std
+
+  cross-ios-build:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust_toolchain: [nightly, stable]
+        rust_target:
+          - aarch64-apple-ios
+          - x86_64-apple-ios
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust ${{ matrix.rust_toolchain }}
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: ${{ matrix.rust_toolchain }}
+            target: ${{ matrix.rust_target }}
+            profile: minimal
+            default: true
+      - name: Update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
+          args: --manifest-path=Cargo.toml
+      - name: Build ${{ matrix.rust_target }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target=${{ matrix.rust_target }} --manifest-path=Cargo.toml
