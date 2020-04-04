@@ -1,5 +1,14 @@
 //! Project changelog
 
+/// Release NEXT (2020-04-??)
+///
+/// * Removed dependency on the C compiler to build this library on unix-like platforms. We used to
+///   utilize it to work-around the very unlikely possibility of the target having thread-unsafe
+///   `dlerror` function, but the effect of the work-around was very opportunistic. We deemed the
+///   cost of the work-around to be higher than the benefit of it.
+pub mod rNEXT {}
+
+
 /// Release 0.5.2 (2019-07-07)
 ///
 /// * Added API to convert OS-specific `Library` and `Symbol` conversion to underlying resources.

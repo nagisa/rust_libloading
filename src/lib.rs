@@ -133,9 +133,14 @@ impl Library {
     ///
     /// ## Platform-specific behaviour
     ///
-    /// On Linux and Windows, a TLS variable acts just like any regular static variable. OS X uses
+    /// On Linux and Windows, a TLS variable acts just like any regular global variable. OS X uses
     /// some sort of lazy initialization scheme, which makes loading TLS variables this way
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    ///
+    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe, this
+    /// function will return an error if this function was to return `Ok` with a null `Symbol`
+    /// otherwise. As a work-around consider using the platform-specific
+    /// [`os::unix::Library::get_singlethreaded`] call.
     ///
     /// ## Examples
     ///

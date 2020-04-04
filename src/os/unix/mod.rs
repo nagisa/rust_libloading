@@ -5,46 +5,40 @@ use std::{fmt, io, marker, mem, ptr};
 use std::os::raw;
 use std::os::unix::ffi::OsStrExt;
 
-extern "C" {
-    fn rust_libloading_dlerror_mutex_lock();
-    fn rust_libloading_dlerror_mutex_unlock();
-}
-
-struct DlerrorMutexGuard(());
-
-impl DlerrorMutexGuard {
-    fn new() -> DlerrorMutexGuard {
-        unsafe {
-            rust_libloading_dlerror_mutex_lock();
-        }
-        DlerrorMutexGuard(())
-    }
-}
-
-impl Drop for DlerrorMutexGuard {
-    fn drop(&mut self) {
-        unsafe {
-            rust_libloading_dlerror_mutex_unlock();
-        }
-    }
-}
-
-// libdl is crazy.
+// dl* family of functions did not have enough thought put into it.
 //
-// First of all, whole error handling scheme in libdl is done via setting and querying some global
-// state, therefore it is not safe to use libdl in MT-capable environment at all. Only in POSIX
-// 2008+TC1 a thread-local state was allowed, which for our purposes is way too late.
+// Whole error handling scheme is done via setting and querying some global state, therefore it is
+// not safe to use dynamic library loading in MT-capable environment at all. Only in POSIX 2008+TC1
+// a thread-local state was allowed for `dlerror`, making the dl* family of functions MT-safe.
+//
+// In practice (as of 2020-04-01) most of the widely used targets use a thread-local for error
+// state and have been doing so for a long time. Regardless the comments in this function shall
+// remain as a documentation for the future generations.
 fn with_dlerror<T, F>(closure: F) -> Result<T, Option<io::Error>>
 where F: FnOnce() -> Option<T> {
-    // We will guard all uses of libdl library with our own mutex. This makes libdl
-    // safe to use in MT programs provided the only way a program uses libdl is via this library.
-    let _lock = DlerrorMutexGuard::new();
-    // While we could could call libdl here to clear the previous error value, only the dlsym
-    // depends on it being cleared beforehand and only in some cases too. We will instead clear the
-    // error inside the dlsym binding instead.
+    // We used to guard all uses of dl* functions with our own mutex. This made them safe to use in
+    // MT programs provided the only way a program used dl* was via this library. However, it also
+    // had a number of downsides or cases where it failed to handle the problems. For instance,
+    // if any other library called `dlerror` internally concurrently with `libloading` things would
+    // still go awry.
+    //
+    // On platforms where `dlerror` is still MT-unsafe, `dlsym` (`Library::get`) can spuriously
+    // succeed and return a null pointer for a symbol when the actual symbol look-up operation
+    // fails. Instances where the actual symbol _could_ be `NULL` are platform specific. For
+    // instance on GNU glibc based-systems (an excerpt from dlsym(3)):
+    //
+    // > The value of a symbol returned by dlsym() will never be NULL if the shared object is the
+    // > result of normal compilation,  since  a  global  symbol is never placed at the NULL
+    // > address. There are nevertheless cases where a lookup using dlsym() may return NULL as the
+    // > value of a symbol. For example, the symbol value may be  the  result of a GNU indirect
+    // > function (IFUNC) resolver function that returns NULL as the resolved value.
+
+    // While we could could call `dlerror` here to clear the previous error value, only the `dlsym`
+    // call depends on it being cleared beforehand and only in some cases too. We will instead
+    // clear the error inside the dlsym binding instead.
     //
     // In all the other cases, clearing the error here will only be hiding misuse of these bindings
-    // or the libdl.
+    // or a bug in implementation of dl* family of functions.
     closure().ok_or_else(|| unsafe {
         // This code will only get executed if the `closure` returns `None`.
         let error = dlerror();
@@ -144,28 +138,16 @@ impl Library {
                 })
             }
         }).map_err(|e| e.unwrap_or_else(||
-            panic!("dlopen failed but dlerror did not report anything")
+            io::Error::new(
+                io::ErrorKind::Other,
+                "dlopen returned a null and dlerror reported no error"
+            )
         ))
     }
 
-    /// Get a pointer to function or static variable by symbol name.
-    ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
-    /// terminated `symbol` may avoid a string allocation in some cases.
-    ///
-    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
-    /// most likely invalid.
-    ///
-    /// ## Unsafety
-    ///
-    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
-    /// undefined.
-    ///
-    /// ## Platform-specific behaviour
-    ///
-    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
-    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+    unsafe fn get_impl<T, F>(&self, symbol: &[u8], on_null: F) -> ::Result<Symbol<T>>
+    where F: FnOnce() -> ::Result<Symbol<T>>
+    {
         ensure_compatible_types::<T, *mut raw::c_void>();
         let symbol = try!(cstr_cow_from_bytes(symbol));
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
@@ -186,13 +168,78 @@ impl Library {
                 })
             }
         }) {
-            Err(None) => Ok(Symbol {
-                pointer: ptr::null_mut(),
-                pd: marker::PhantomData
-            }),
+            Err(None) => on_null(),
             Err(Some(e)) => Err(e),
             Ok(x) => Ok(x)
         }
+
+    }
+
+    /// Get a pointer to function or static variable by symbol name.
+    ///
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
+    /// terminated `symbol` may avoid a string allocation in some cases.
+    ///
+    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
+    /// most likely invalid.
+    ///
+    /// ## Unsafety
+    ///
+    /// This function does not validate the type `T`. It is up to the user of this function to
+    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
+    /// definied behaviour.
+    ///
+    /// ## Platform-specific behaviour
+    ///
+    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
+    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    ///
+    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe, this
+    /// function will return an error if this function was to return `Ok` with a null `Symbol`
+    /// on other platforms. As a work-around consider using the [`Self::get_singlethreaded`] call.
+    #[inline(always)]
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+        #[cfg(mtsafe_dlerror)]
+        { return self.get_singlethreaded(symbol); }
+        #[cfg(not(mtsafe_dlerror))]
+        {
+            return self.get_impl(symbol, || {
+                Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "dlsym returned a null and MT-unsafe dlerror reported no error"
+                ))
+            });
+        }
+    }
+
+    /// Get a pointer to function or static variable by symbol name.
+    ///
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
+    /// terminated `symbol` may avoid a string allocation in some cases.
+    ///
+    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
+    /// most likely invalid.
+    ///
+    /// ## Unsafety
+    ///
+    /// This function does not validate the type `T`. It is up to the user of this function to
+    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
+    /// definied behaviour.
+    ///
+    /// It is up to the user of this library to ensure that no other calls to an MT-unsafe
+    /// implementation of `dlerror` occur while this function is executing. Failing that the
+    /// results of this function are not defined.
+    ///
+    /// ## Platform-specific behaviour
+    ///
+    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
+    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    #[inline(always)]
+    pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+        self.get_impl(symbol, || Ok(Symbol {
+            pointer: ptr::null_mut(),
+            pd: marker::PhantomData
+        }))
     }
 
     /// Convert the `Library` to a raw handle.
