@@ -40,21 +40,11 @@ jobs:
         with:
           command: test
           args: --manifest-path=Cargo.toml -- --nocapture
-      - name: Test Examples
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path=Cargo.toml --examples -- --nocapture
       - name: Test Release
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --manifest-path=Cargo.toml --release -- --nocapture
-      - name: Test Release Examples
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path=Cargo.toml --examples --release -- --nocapture
 
   windows-gnu-test:
     runs-on: windows-latest
