@@ -7,6 +7,7 @@
 ///
 /// ## Breaking changes
 ///
+/// * Minimum required (stable) version of Rust to build this library is now 1.36.0;
 /// * Removed the dependency on the C compiler to build this library on UNIX-like platforms.
 ///   `libloading` used to utilize a snippet written in C to work-around the unlikely possibility
 ///   of the target having a thread-unsafe implementation of the `dlerror` function. The effect of

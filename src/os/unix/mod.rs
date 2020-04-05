@@ -340,8 +340,9 @@ impl<T> ::std::ops::Deref for Symbol<T> {
 impl<T> fmt::Debug for Symbol<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         unsafe {
-            let mut info: DlInfo = mem::uninitialized();
-            if dladdr(self.pointer, &mut info) != 0 {
+            let mut info = mem::MaybeUninit::<DlInfo>::uninit();
+            if dladdr(self.pointer, info.as_mut_ptr()) != 0 {
+                let info = info.assume_init();
                 if info.dli_sname.is_null() {
                     f.write_str(&format!("Symbol@{:p} from {:?}",
                                          self.pointer,
