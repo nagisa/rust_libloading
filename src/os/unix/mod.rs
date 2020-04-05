@@ -118,7 +118,7 @@ impl Library {
     where P: AsRef<OsStr> {
         let filename = match filename {
             None => None,
-            Some(ref f) => Some(try!(cstr_cow_from_bytes(f.as_ref().as_bytes()))),
+            Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
         };
         with_dlerror(move || {
             let result = unsafe {
@@ -149,7 +149,7 @@ impl Library {
     where F: FnOnce() -> ::Result<Symbol<T>>
     {
         ensure_compatible_types::<T, *mut raw::c_void>();
-        let symbol = try!(cstr_cow_from_bytes(symbol));
+        let symbol = cstr_cow_from_bytes(symbol)?;
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.

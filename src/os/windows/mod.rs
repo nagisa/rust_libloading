@@ -73,7 +73,7 @@ impl Library {
     /// definied behaviour.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         ensure_compatible_types::<T, FARPROC>();
-        let symbol = try!(cstr_cow_from_bytes(symbol));
+        let symbol = cstr_cow_from_bytes(symbol)?;
         with_get_last_error(|| {
             let symbol = libloaderapi::GetProcAddress(self.0, symbol.as_ptr());
             if symbol.is_null() {

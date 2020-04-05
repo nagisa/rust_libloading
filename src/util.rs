@@ -42,9 +42,9 @@ pub fn cstr_cow_from_bytes<'a>(slice: &'a [u8]) -> Result<Cow<'a, CStr>, NullErr
         // Slice out of 0 elements
         None => unsafe { Cow::Borrowed(CStr::from_ptr(&ZERO)) },
         // Slice with trailing 0
-        Some(&0) => Cow::Borrowed(try!(CStr::from_bytes_with_nul(slice))),
+        Some(&0) => Cow::Borrowed(CStr::from_bytes_with_nul(slice)?),
         // Slice with no trailing 0
-        Some(_) => Cow::Owned(try!(CString::new(slice))),
+        Some(_) => Cow::Owned(CString::new(slice)?),
     })
 }
 
