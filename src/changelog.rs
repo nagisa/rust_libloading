@@ -4,10 +4,15 @@
 ///
 /// * Introduced a new method [`os::unix::Library::get_singlethreaded`];
 /// * Added (untested) support for building when targetting Redox and Fuchsia;
+/// * The APIs exposed by this library no longer panic and instead return an `Err` when it used
+///   to panic.
 ///
 /// ## Breaking changes
 ///
-/// * Minimum required (stable) version of Rust to build this library is now 1.36.0;
+/// * Minimum required (stable) version of Rust to build this library is now 1.40.0;
+/// * This crate now implements a custom [`Error`] type and all APIs now return this type rather
+///   than returning the `std::io::Error`;
+/// * `libloading::Result` has been removed;
 /// * Removed the dependency on the C compiler to build this library on UNIX-like platforms.
 ///   `libloading` used to utilize a snippet written in C to work-around the unlikely possibility
 ///   of the target having a thread-unsafe implementation of the `dlerror` function. The effect of
@@ -21,6 +26,7 @@
 ///
 /// [`Library::get`]: crate::Library::get
 /// [`os::unix::Library::get_singlethreaded`]: crate::os::unix::Library::get_singlethreaded
+/// [`Error`]: crate::Error
 pub mod r0_6_0 {}
 
 

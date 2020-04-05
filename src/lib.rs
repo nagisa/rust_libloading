@@ -25,7 +25,7 @@
 //! ```no_run
 //! extern crate libloading as lib;
 //!
-//! fn call_dynamic() -> lib::Result<u32> {
+//! fn call_dynamic() -> Result<u32, Box<dyn std::error::Error>> {
 //!     let lib = lib::Library::new("/path/to/liblibrary.so")?;
 //!     unsafe {
 //!         let func: lib::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
@@ -45,12 +45,12 @@ use std::marker;
 use self::os::unix as imp;
 #[cfg(windows)]
 use self::os::windows as imp;
+pub use self::error::Error;
 
 pub mod os;
 pub mod changelog;
 mod util;
-
-pub type Result<T> = ::std::io::Result<T>;
+mod error;
 
 /// A loaded dynamic library.
 pub struct Library(imp::Library);
@@ -114,7 +114,7 @@ impl Library {
     /// let _ = Library::new("../awesome.module").unwrap();
     /// let _ = Library::new("libsomelib.so.1").unwrap();
     /// ```
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library> {
+    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
     }
 
@@ -174,8 +174,20 @@ impl Library {
     ///     **awesome_variable = 42.0;
     /// };
     /// ```
-    pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>> {
+    pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>, Error> {
         self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
+    }
+
+    /// Unload the library.
+    ///
+    /// This method might be a no-op, depending on the flags with which the `Library` was opened,
+    /// what library was opened or other platform specifics.
+    ///
+    /// You only need to call this if you are interested in handling any errors that may arise when
+    /// library is unloaded. Otherwise the implementation of `Drop` for `Library` will close the
+    /// library and ignore the errors were they arise.
+    pub fn close(self) -> Result<(), Error> {
+        self.0.close()
     }
 }
 

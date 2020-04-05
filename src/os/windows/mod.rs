@@ -11,7 +11,6 @@ use std::{fmt, io, marker, mem, ptr};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 
-
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(HMODULE);
 
@@ -36,11 +35,11 @@ impl Library {
     ///
     /// Corresponds to `LoadLibraryW(filename)`.
     #[inline]
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
+    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
-        let ret = with_get_last_error(|| {
+        let ret = with_get_last_error(|source| crate::Error::LoadLibraryW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
             let handle = unsafe { libloaderapi::LoadLibraryW(wide_filename.as_ptr()) };
@@ -49,10 +48,7 @@ impl Library {
             } else {
                 Some(Library(handle))
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("LoadLibraryW failed but GetLastError did not report the error")
-        ));
-
+        }).map_err(|e| e.unwrap_or(crate::Error::LoadLibraryWUnknown));
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
                              // inside the closure by mistake. See comment inside the closure.
         ret
@@ -71,10 +67,10 @@ impl Library {
     /// This function does not validate the type `T`. It is up to the user of this function to
     /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
     /// definied behaviour.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
-        ensure_compatible_types::<T, FARPROC>();
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+        ensure_compatible_types::<T, FARPROC>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
-        with_get_last_error(|| {
+        with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
             let symbol = libloaderapi::GetProcAddress(self.0, symbol.as_ptr());
             if symbol.is_null() {
                 None
@@ -84,9 +80,7 @@ impl Library {
                     pd: marker::PhantomData
                 })
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("GetProcAddress failed but GetLastError did not report the error")
-        ))
+        }).map_err(|e| e.unwrap_or(crate::Error::GetProcAddressUnknown))
     }
 
     /// Get a pointer to function or static variable by ordinal number.
@@ -95,9 +89,9 @@ impl Library {
     ///
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.
-    pub unsafe fn get_ordinal<T>(&self, ordinal: WORD) -> ::Result<Symbol<T>> {
-        ensure_compatible_types::<T, FARPROC>();
-        with_get_last_error(|| {
+    pub unsafe fn get_ordinal<T>(&self, ordinal: WORD) -> Result<Symbol<T>, crate::Error> {
+        ensure_compatible_types::<T, FARPROC>()?;
+        with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
             let ordinal = ordinal as usize as *mut _;
             let symbol = libloaderapi::GetProcAddress(self.0, ordinal);
             if symbol.is_null() {
@@ -108,9 +102,7 @@ impl Library {
                     pd: marker::PhantomData
                 })
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            panic!("GetProcAddress failed but GetLastError did not report the error")
-        ))
+        }).map_err(|e| e.unwrap_or(crate::Error::GetProcAddressUnknown))
     }
 
     /// Convert the `Library` to a raw handle.
@@ -129,17 +121,22 @@ impl Library {
     pub unsafe fn from_raw(handle: HMODULE) -> Library {
         Library(handle)
     }
-}
 
-impl Drop for Library {
-    fn drop(&mut self) {
-        with_get_last_error(|| {
+    /// Unload the library.
+    pub fn close(self) -> Result<(), crate::Error> {
+        with_get_last_error(|source| crate::Error::FreeLibrary { source }, || {
             if unsafe { libloaderapi::FreeLibrary(self.0) == 0 } {
                 None
             } else {
                 Some(())
             }
-        }).unwrap()
+        }).map_err(|e| e.unwrap_or(crate::Error::FreeLibraryUnknown))
+    }
+}
+
+impl Drop for Library {
+    fn drop(&mut self) {
+        unsafe { libloaderapi::FreeLibrary(self.0); }
     }
 }
 
@@ -277,38 +274,44 @@ impl Drop for ErrorModeGuard {
     }
 }
 
-fn with_get_last_error<T, F>(closure: F) -> Result<T, Option<io::Error>>
+fn with_get_last_error<T, F>(wrap: fn(crate::error::WindowsError) -> crate::Error, closure: F)
+-> Result<T, Option<crate::Error>>
 where F: FnOnce() -> Option<T> {
     closure().ok_or_else(|| {
         let error = unsafe { errhandlingapi::GetLastError() };
         if error == 0 {
             None
         } else {
-            Some(io::Error::from_raw_os_error(error as i32))
+            Some(wrap(crate::error::WindowsError(io::Error::from_raw_os_error(error as i32))))
         }
     })
 }
 
-#[test]
-fn works_getlasterror() {
-    let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
-        lib.get(b"GetLastError").unwrap()
-    };
-    unsafe {
-        errhandlingapi::SetLastError(42);
-        assert_eq!(errhandlingapi::GetLastError(), gle())
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn works_getlasterror0() {
-    let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
-        lib.get(b"GetLastError\0").unwrap()
-    };
-    unsafe {
-        errhandlingapi::SetLastError(42);
-        assert_eq!(errhandlingapi::GetLastError(), gle())
+    #[test]
+    fn works_getlasterror() {
+        let lib = Library::new("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
+            lib.get(b"GetLastError").unwrap()
+        };
+        unsafe {
+            errhandlingapi::SetLastError(42);
+            assert_eq!(errhandlingapi::GetLastError(), gle())
+        }
+    }
+
+    #[test]
+    fn works_getlasterror0() {
+        let lib = Library::new("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
+            lib.get(b"GetLastError\0").unwrap()
+        };
+        unsafe {
+            errhandlingapi::SetLastError(42);
+            assert_eq!(errhandlingapi::GetLastError(), gle())
+        }
     }
 }

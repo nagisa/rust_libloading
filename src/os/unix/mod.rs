@@ -1,7 +1,7 @@
 use util::{ensure_compatible_types, cstr_cow_from_bytes};
 
 use std::ffi::{CStr, OsStr};
-use std::{fmt, io, marker, mem, ptr};
+use std::{fmt, marker, mem, ptr};
 use std::os::raw;
 use std::os::unix::ffi::OsStrExt;
 
@@ -14,7 +14,8 @@ use std::os::unix::ffi::OsStrExt;
 // In practice (as of 2020-04-01) most of the widely used targets use a thread-local for error
 // state and have been doing so for a long time. Regardless the comments in this function shall
 // remain as a documentation for the future generations.
-fn with_dlerror<T, F>(closure: F) -> Result<T, Option<io::Error>>
+fn with_dlerror<T, F>(wrap: fn(crate::error::DlDescription) -> crate::Error, closure: F)
+-> Result<T, Option<crate::Error>>
 where F: FnOnce() -> Option<T> {
     // We used to guard all uses of dl* functions with our own mutex. This made them safe to use in
     // MT programs provided the only way a program used dl* was via this library. However, it also
@@ -52,8 +53,8 @@ where F: FnOnce() -> Option<T> {
             // ownership over the message?
             // TODO: should do locale-aware conversion here. OTOH Rust doesn’t seem to work well in
             // any system that uses non-utf8 locale, so I doubt there’s a problem here.
-            let message = CStr::from_ptr(error).to_string_lossy().into_owned();
-            Some(io::Error::new(io::ErrorKind::Other, message))
+            let message = CStr::from_ptr(error).into();
+            Some(wrap(crate::error::DlDescription(message)))
             // Since we do a copy of the error string above, maybe we should call dlerror again to
             // let libdl know it may free its copy of the string now?
         }
@@ -91,7 +92,7 @@ impl Library {
     ///
     /// Corresponds to `dlopen(filename, RTLD_NOW)`.
     #[inline]
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> ::Result<Library> {
+    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_NOW)
     }
 
@@ -103,7 +104,7 @@ impl Library {
     /// Corresponds to `dlopen(NULL, RTLD_NOW)`.
     #[inline]
     pub fn this() -> Library {
-        Library::open(None::<&OsStr>, RTLD_NOW).unwrap()
+        Library::open(None::<&OsStr>, RTLD_NOW).expect("this should never fail")
     }
 
     /// Find and load a shared library (module).
@@ -114,13 +115,13 @@ impl Library {
     /// If the `filename` is None, null pointer is passed to `dlopen`.
     ///
     /// Corresponds to `dlopen(filename, flags)`.
-    pub fn open<P>(filename: Option<P>, flags: raw::c_int) -> ::Result<Library>
+    pub fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
     where P: AsRef<OsStr> {
         let filename = match filename {
             None => None,
             Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
         };
-        with_dlerror(move || {
+        with_dlerror(|desc| crate::Error::DlOpen { desc }, move || {
             let result = unsafe {
                 let r = dlopen(match filename {
                     None => ptr::null(),
@@ -137,18 +138,13 @@ impl Library {
                     handle: result
                 })
             }
-        }).map_err(|e| e.unwrap_or_else(||
-            io::Error::new(
-                io::ErrorKind::Other,
-                "dlopen returned a null and dlerror reported no error"
-            )
-        ))
+        }).map_err(|e| e.unwrap_or(crate::Error::DlOpenUnknown))
     }
 
-    unsafe fn get_impl<T, F>(&self, symbol: &[u8], on_null: F) -> ::Result<Symbol<T>>
-    where F: FnOnce() -> ::Result<Symbol<T>>
+    unsafe fn get_impl<T, F>(&self, symbol: &[u8], on_null: F) -> Result<Symbol<T>, crate::Error>
+    where F: FnOnce() -> Result<Symbol<T>, crate::Error>
     {
-        ensure_compatible_types::<T, *mut raw::c_void>();
+        ensure_compatible_types::<T, *mut raw::c_void>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
@@ -156,7 +152,7 @@ impl Library {
         //
         // We try to leave as little space as possible for this to occur, but we can’t exactly
         // fully prevent it.
-        match with_dlerror(|| {
+        match with_dlerror(|desc| crate::Error::DlSym { desc }, || {
             dlerror();
             let symbol = dlsym(self.handle, symbol.as_ptr());
             if symbol.is_null() {
@@ -202,17 +198,12 @@ impl Library {
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         #[cfg(mtsafe_dlerror)]
         { return self.get_singlethreaded(symbol); }
         #[cfg(not(mtsafe_dlerror))]
         {
-            return self.get_impl(symbol, || {
-                Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "dlsym returned a null and MT-unsafe dlerror reported no error"
-                ))
-            });
+            return self.get_impl(symbol, || Err(crate::Error::DlSymUnknown));
         }
     }
 
@@ -239,7 +230,7 @@ impl Library {
     /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     #[inline(always)]
-    pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
+    pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || Ok(Symbol {
             pointer: ptr::null_mut(),
             pd: marker::PhantomData
@@ -268,15 +259,33 @@ impl Library {
             handle: handle
         }
     }
+
+    /// Unload the library.
+    ///
+    /// This method might be a no-op, depending on the flags with which the `Library` was opened,
+    /// what library was opened or other platform specifics.
+    ///
+    /// You only need to call this if you are interested in handling any errors that may arise when
+    /// library is unloaded. Otherwise the implementation of `Drop` for `Library` will close the
+    /// library and ignore the errors were they arise.
+    pub fn close(self) -> Result<(), crate::Error> {
+        let result = with_dlerror(|desc| crate::Error::DlClose { desc }, || {
+            if unsafe { dlclose(self.handle) } == 0 {
+                Some(())
+            } else {
+                None
+            }
+        }).map_err(|e| e.unwrap_or(crate::Error::DlCloseUnknown));
+        std::mem::forget(self);
+        result
+    }
 }
 
 impl Drop for Library {
     fn drop(&mut self) {
-        with_dlerror(|| if unsafe { dlclose(self.handle) } == 0 {
-            Some(())
-        } else {
-            None
-        }).unwrap();
+        unsafe {
+            dlclose(self.handle);
+        }
     }
 }
 
@@ -382,7 +391,10 @@ struct DlInfo {
   dli_saddr: *mut raw::c_void
 }
 
-#[test]
-fn this() {
-    Library::this();
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn this() {
+        super::Library::this();
+    }
 }
