@@ -1,12 +1,26 @@
 //! Project changelog
 
-/// Release NEXT (2020-04-??)
+/// Release 0.6.0 (2020-04-0?)
 ///
-/// * Removed dependency on the C compiler to build this library on unix-like platforms. We used to
-///   utilize it to work-around the very unlikely possibility of the target having thread-unsafe
-///   `dlerror` function, but the effect of the work-around was very opportunistic. We deemed the
-///   cost of the work-around to be higher than the benefit of it.
-pub mod rNEXT {}
+/// * Introduced a new method [`os::unix::Library::get_singlethreaded`];
+/// * Added (untested) support for building when targetting Redox and Fuchsia;
+///
+/// ## Breaking changes
+///
+/// * Removed the dependency on the C compiler to build this library on UNIX-like platforms.
+///   `libloading` used to utilize a snippet written in C to work-around the unlikely possibility
+///   of the target having a thread-unsafe implementation of the `dlerror` function. The effect of
+///   the work-around was very opportunistic: it would not work if the function was called by
+///   forgoing `libloading`.
+///
+///   Starting with 0.6.0, [`Library::get`] on platforms where `dlerror` is not MT-safe (such as
+///   FreeBSD, DragonflyBSD or NetBSD) will unconditionally return an error when the underlying
+///   `dlsym` returns a null pointer. For the use-cases where loading null pointers is necessary
+///   consider using [`os::unix::Library::get_singlethreaded`] instead.
+///
+/// [`Library::get`]: crate::Library::get
+/// [`os::unix::Library::get_singlethreaded`]: crate::os::unix::Library::get_singlethreaded
+pub mod r0_6_0 {}
 
 
 /// Release 0.5.2 (2019-07-07)

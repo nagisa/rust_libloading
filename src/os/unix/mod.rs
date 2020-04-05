@@ -189,14 +189,18 @@ impl Library {
     /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
     /// definied behaviour.
     ///
+    ///
+    ///
     /// ## Platform-specific behaviour
     ///
     /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     ///
-    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe, this
-    /// function will return an error if this function was to return `Ok` with a null `Symbol`
-    /// on other platforms. As a work-around consider using the [`Self::get_singlethreaded`] call.
+    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
+    /// as FreeBSD), this function will unconditionally return an error the underlying `dlsym` call
+    /// returns a null pointer. There are rare situations where `dlsym` returns a genuine null
+    /// pointer without it being an error. If loading a null pointer is something you care about,
+    /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         #[cfg(mtsafe_dlerror)]

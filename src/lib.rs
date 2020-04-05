@@ -137,10 +137,11 @@ impl Library {
     /// some sort of lazy initialization scheme, which makes loading TLS variables this way
     /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
     ///
-    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe, this
-    /// function will return an error if this function was to return `Ok` with a null `Symbol`
-    /// otherwise. As a work-around consider using the platform-specific
-    /// [`os::unix::Library::get_singlethreaded`] call.
+    /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
+    /// as FreeBSD), this function will unconditionally return an error the underlying `dlsym` call
+    /// returns a null pointer. There are rare situations where `dlsym` returns a genuine null
+    /// pointer without it being an error. If loading a null pointer is something you care about,
+    /// consider using the [`os::unix::Library::get_singlethreaded`] call.
     ///
     /// ## Examples
     ///

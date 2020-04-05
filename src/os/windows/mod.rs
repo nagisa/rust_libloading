@@ -68,8 +68,9 @@ impl Library {
     ///
     /// ## Unsafety
     ///
-    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
-    /// undefined.
+    /// This function does not validate the type `T`. It is up to the user of this function to
+    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
+    /// definied behaviour.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> ::Result<Symbol<T>> {
         ensure_compatible_types::<T, FARPROC>();
         let symbol = try!(cstr_cow_from_bytes(symbol));
