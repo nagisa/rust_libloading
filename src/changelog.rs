@@ -1,6 +1,6 @@
 //! Project changelog
 
-/// Release 0.6.0 (2020-04-0?)
+/// Release 0.6.0 (2020-04-05)
 ///
 /// * Introduced a new method [`os::unix::Library::get_singlethreaded`];
 /// * Added (untested) support for building when targetting Redox and Fuchsia;
