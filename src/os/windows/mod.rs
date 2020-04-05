@@ -143,13 +143,18 @@ impl Drop for Library {
 impl fmt::Debug for Library {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         unsafe {
-            let mut buf: [WCHAR; 1024] = mem::uninitialized();
+            // FIXME: use Maybeuninit::uninit_array when stable
+            let mut buf =
+                mem::MaybeUninit::<[mem::MaybeUninit::<WCHAR>; 1024]>::uninit().assume_init();
             let len = libloaderapi::GetModuleFileNameW(self.0,
-                                                   (&mut buf[..]).as_mut_ptr(), 1024) as usize;
+                (&mut buf[..]).as_mut_ptr().cast(), 1024) as usize;
             if len == 0 {
                 f.write_str(&format!("Library@{:p}", self.0))
             } else {
-                let string: OsString = OsString::from_wide(&buf[..len]);
+                let string: OsString = OsString::from_wide(
+                    // FIXME: use Maybeuninit::slice_get_ref when stable
+                    &*(&buf[..len] as *const [_] as *const [WCHAR])
+                );
                 f.write_str(&format!("Library@{:p} from {:?}", self.0, string))
             }
         }
