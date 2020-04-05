@@ -9,7 +9,7 @@ use util::{ensure_compatible_types, cstr_cow_from_bytes};
 use std::ffi::{OsStr, OsString};
 use std::{fmt, io, marker, mem, ptr};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
-use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A platform-specific equivalent of the cross-platform `Library`.
 pub struct Library(HMODULE);
@@ -214,7 +214,7 @@ impl<T> fmt::Debug for Symbol<T> {
 }
 
 
-static USE_ERRORMODE: AtomicBool = ATOMIC_BOOL_INIT;
+static USE_ERRORMODE: AtomicBool = AtomicBool::new(false);
 struct ErrorModeGuard(DWORD);
 
 impl ErrorModeGuard {
