@@ -1,5 +1,15 @@
 //! Project changelog
 
+// TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
+
+/// Release 0.6.1 (2020-04-15)
+///
+/// * Introduced a new method [`os::windows::Library::load_with_flags`];
+/// * Added support for the Illumos triple.
+///
+/// [`os::windows::Library::load_with_flags`]: ../../os/windows/struct.Library.html#method.load_with_flags
+pub mod r0_6_1 {}
+
 /// Release 0.6.0 (2020-04-05)
 ///
 /// * Introduced a new method [`os::unix::Library::get_singlethreaded`];
@@ -24,9 +34,9 @@
 ///   `dlsym` returns a null pointer. For the use-cases where loading null pointers is necessary
 ///   consider using [`os::unix::Library::get_singlethreaded`] instead.
 ///
-/// [`Library::get`]: crate::Library::get
-/// [`os::unix::Library::get_singlethreaded`]: crate::os::unix::Library::get_singlethreaded
-/// [`Error`]: crate::Error
+/// [`Library::get`]: ../../struct.Library.html#method.get
+/// [`os::unix::Library::get_singlethreaded`]: ../../os/unix/struct.Library.html#method.get_singlethreaded
+/// [`Error`]: ../../enum.Error.html
 pub mod r0_6_0 {}
 
 
