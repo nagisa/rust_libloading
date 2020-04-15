@@ -31,9 +31,9 @@ pub enum Error {
     DlClose { desc: DlDescription },
     /// The `dlclose` call failed and system did not report an error.
     DlCloseUnknown,
-    /// The `LoadLibraryW` call failed.
+    /// The `LoadLibraryExW` call failed.
     LoadLibraryExW { source: WindowsError },
-    /// The `LoadLibraryW` call failed and system did not report an error.
+    /// The `LoadLibraryExW` call failed and system did not report an error.
     LoadLibraryExWUnknown,
     /// The `GetProcAddress` call failed.
     GetProcAddress { source: WindowsError },
