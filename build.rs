@@ -10,6 +10,7 @@ fn dlerror_is_mtsafe(target_os: &str) {
         | "macos"
         | "ios"
         | "solaris"
+        | "illumos"
         | "redox"
         | "fuchsia" => {
             println!("cargo:rustc-cfg=mtsafe_dlerror");
