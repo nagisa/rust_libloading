@@ -33,7 +33,7 @@ unsafe impl Sync for Library {}
 impl Library {
     /// Find and load a shared library (module).
     ///
-    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags: 0)` which is equivalent to `LoadLibraryW(filename)`
+    /// Corresponds to `LoadLibraryW(filename, reserved: NULL, flags: 0)` which is equivalent to `LoadLibraryW(filename)`
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
@@ -44,12 +44,12 @@ impl Library {
     /// Locations where library is searched for is platform specific and can’t be adjusted
     /// portably.
     ///
-    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
+    /// Corresponds to `LoadLibraryW(filename, reserved: NULL, flags)`.
     pub fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
-        let ret = with_get_last_error(|source| crate::Error::LoadLibraryExW { source }, || {
+        let ret = with_get_last_error(|source| crate::Error::LoadLibraryW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
             let handle = unsafe { libloaderapi::LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), flags) };
@@ -58,9 +58,9 @@ impl Library {
             } else {
                 Some(Library(handle))
             }
-        }).map_err(|e| e.unwrap_or(crate::Error::LoadLibraryExWUnknown));
+        }).map_err(|e| e.unwrap_or(crate::Error::LoadLibraryWUnknown));
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
-        // inside the closure by mistake. See comment inside the closure.
+                             // inside the closure by mistake. See comment inside the closure.
         ret
     }
 
