@@ -32,9 +32,9 @@ pub enum Error {
     /// The `dlclose` call failed and system did not report an error.
     DlCloseUnknown,
     /// The `LoadLibraryW` call failed.
-    LoadLibraryW { source: WindowsError },
+    LoadLibraryExW { source: WindowsError },
     /// The `LoadLibraryW` call failed and system did not report an error.
-    LoadLibraryWUnknown,
+    LoadLibraryExWUnknown,
     /// The `GetProcAddress` call failed.
     GetProcAddress { source: WindowsError },
     /// The `GetProcAddressUnknown` call failed and system did not report an error.
@@ -57,7 +57,7 @@ impl std::error::Error for Error {
         match *self {
             CreateCString { ref source } => Some(source),
             CreateCStringWithTrailing { ref source } => Some(source),
-            LoadLibraryW { ref source } => Some(&source.0),
+            LoadLibraryExW { ref source } => Some(&source.0),
             GetProcAddress { ref source } => Some(&source.0),
             FreeLibrary { ref source } => Some(&source.0),
             _ => None,
@@ -75,8 +75,8 @@ impl std::fmt::Display for Error {
             DlSymUnknown => write!(f, "dlsym failed, but system did not report the error"),
             DlClose { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
             DlCloseUnknown => write!(f, "dlclose failed, but system did not report the error"),
-            LoadLibraryW { .. } => write!(f, "LoadLibraryW failed"),
-            LoadLibraryWUnknown =>
+            LoadLibraryExW { .. } => write!(f, "LoadLibraryW failed"),
+            LoadLibraryExWUnknown =>
                 write!(f, "LoadLibraryW failed, but system did not report the error"),
             GetProcAddress { .. } => write!(f, "GetProcAddress failed"),
             GetProcAddressUnknown =>
