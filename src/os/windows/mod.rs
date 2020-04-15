@@ -33,7 +33,7 @@ unsafe impl Sync for Library {}
 impl Library {
     /// Find and load a shared library (module).
     ///
-    /// Corresponds to `LoadLibraryExW(filename, NULL, 0)` which is equivalent to `LoadLibraryW(filename)`
+    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags: 0)` which is equivalent to `LoadLibraryW(filename)`
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
@@ -44,7 +44,7 @@ impl Library {
     /// Locations where library is searched for is platform specific and can’t be adjusted
     /// portably.
     ///
-    /// Corresponds to `LoadLibraryExW(filename, NULL, flags)`.
+    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
     pub fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
