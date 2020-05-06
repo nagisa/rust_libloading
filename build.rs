@@ -34,7 +34,7 @@ fn link_libraries(target_os: &str) {
         // found any libraries that have to be linked to on other platforms.
         // What happens if the executable is not linked up dynamically?
         "openbsd" | "bitrig" | "netbsd" | "macos" | "ios" => {}
-        "solaris" => {}
+        "solaris" | "illumos" => {}
         "haiku" => {}
         "redox" => {}
         "fuchsia" => {}
