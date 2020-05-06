@@ -2,6 +2,11 @@
 
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
 
+/// Release 0.6.2 (2020-05-06)
+///
+/// * Fixed building of this library on Illumos.
+pub mod r0_6_2 {}
+
 /// Release 0.6.1 (2020-04-15)
 ///
 /// * Introduced a new method [`os::windows::Library::load_with_flags`];
