@@ -65,13 +65,6 @@ jobs:
             target: ${{ matrix.rust_target }}
             profile: minimal
             default: true
-      # https://github.com/rust-lang/rust/issues/49078
-      - name: Fix windows-gnu rust-mingw
-        run : |
-          for i in crt2.o dllcrt2.o libmingwex.a libmsvcrt.a ; do
-            cp -f "/C/ProgramData/Chocolatey/lib/mingw/tools/install/mingw64/x86_64-w64-mingw32/lib/$i" "`rustc --print sysroot`/lib/rustlib/x86_64-pc-windows-gnu/lib"
-          done
-        shell: bash
       - uses: actions-rs/cargo@v1
         with:
           command: build
