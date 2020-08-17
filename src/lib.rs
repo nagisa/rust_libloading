@@ -36,9 +36,11 @@
 //!
 //! The compiler will ensure that the loaded `function` will not outlive the `Library` it comes
 //! from, preventing a common cause of undefined behaviour and memory safety problems.
+use std::borrow::Cow;
+use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::ffi::OsStr;
 use std::fmt;
-use std::ops;
+use std::ops::{self, Deref};
 use std::marker;
 
 #[cfg(unix)]
@@ -116,6 +118,36 @@ impl Library {
     /// ```
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
+    }
+
+    fn resolve_name<'a>(name: &'a str) -> Cow<'a, str> {
+        match (name.starts_with(DLL_PREFIX), name.ends_with(DLL_SUFFIX)) {
+            (true, true) => Cow::Borrowed(name),
+            (true, false) => Cow::Owned(format!("{}{}", name, DLL_SUFFIX)),
+            (false, true) => Cow::Owned(format!("{}{}", DLL_PREFIX, name)),
+            (false, false) => Cow::Owned(format!("{}{}{}", DLL_PREFIX, name, DLL_SUFFIX)),
+        }
+    }
+
+    /// Loads a library and does resolve it's name to match platform-specific
+    /// naming schemes.
+    ///
+    /// For a given library called `engine`, this method will resolve the name
+    /// to the following:
+    /// - `Linux`: `libengine.so`
+    /// - `macOS`: `libengine.dylib`
+    /// - `Windows`: `engine.dll`
+    ///
+    /// # Note
+    ///
+    /// This function does only work with library names and does not work when
+    /// supplying a path to a library. The function assumes that the library is
+    /// already present inside a path that is detectable and searchable by the
+    /// OS during runtime.
+    pub fn with_name_resolve<T: AsRef<str>>(libname: T) -> Result<Library, Error> {
+        let resolved_name = Self::resolve_name(libname.as_ref());
+        println!("resolved: {}", &resolved_name);
+        Self::new(resolved_name.deref())
     }
 
     /// Get a pointer to function or static variable by symbol name.
@@ -326,3 +358,110 @@ impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
 
 unsafe impl<'lib, T: Send> Send for Symbol<'lib, T> {}
 unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
+
+#[cfg(test)]
+mod tests {
+    use super::Library;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_resolve_name_none() {
+        let name = "audioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "audioengine.dll");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_resolve_name_none() {
+        let name = "audioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.so");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_resolve_name_none() {
+        let name = "audioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.dylib");
+    }
+
+    // prefix only
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_resolve_name_prefix() {
+        let name = "audioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "audioengine.dll");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_resolve_name_prefix() {
+        let name = "libaudioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.so");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_resolve_name_prefix() {
+        let name = "libaudioengine";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.dylib");
+    }
+
+    // suffix only
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_resolve_name_suffix() {
+        let name = "audioengine.dll";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "audioengine.dll");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_resolve_name_suffix() {
+        let name = "audioengine.so";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.so");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_resolve_name_suffix() {
+        let name = "audioengine.dylib";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.dylib");
+    }
+
+    // both
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_resolve_name_prefix_and_suffix() {
+        let name = "audioengine.dll";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "audioengine.dll");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_resolve_name_prefix_and_suffix() {
+        let name = "libaudioengine.so";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.so");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_resolve_name_prefix_and_suffix() {
+        let name = "libaudioengine.dylib";
+        let resolved = Library::resolve_name(name);
+        assert_eq!(&resolved, "libaudioengine.dylib");
+    }
+}
