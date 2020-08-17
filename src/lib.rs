@@ -146,7 +146,6 @@ impl Library {
     /// OS during runtime.
     pub fn with_name_resolve<T: AsRef<str>>(libname: T) -> Result<Library, Error> {
         let resolved_name = Self::resolve_name(libname.as_ref());
-        println!("resolved: {}", &resolved_name);
         Self::new(resolved_name.deref())
     }
 
