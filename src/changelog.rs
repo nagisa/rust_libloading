@@ -2,6 +2,15 @@
 
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
 
+
+/// Release 0.6.3 (2020-08-22)
+///
+/// * Improve documentation, allowing to view all of the os-specific functionality from
+/// documentation generated for any target.
+/// * Add [`os::windows::Library::this`].
+///
+/// [`os::windows::Library::this`]: crate::os::windows::Library::this
+
 /// Release 0.6.2 (2020-05-06)
 ///
 /// * Fixed building of this library on Illumos.
@@ -12,7 +21,7 @@ pub mod r0_6_2 {}
 /// * Introduced a new method [`os::windows::Library::load_with_flags`];
 /// * Added support for the Illumos triple.
 ///
-/// [`os::windows::Library::load_with_flags`]: ../../os/windows/struct.Library.html#method.load_with_flags
+/// [`os::windows::Library::load_with_flags`]: crate::os::windows::Library::load_with_flags
 pub mod r0_6_1 {}
 
 /// Release 0.6.0 (2020-04-05)
@@ -39,9 +48,9 @@ pub mod r0_6_1 {}
 ///   `dlsym` returns a null pointer. For the use-cases where loading null pointers is necessary
 ///   consider using [`os::unix::Library::get_singlethreaded`] instead.
 ///
-/// [`Library::get`]: ../../struct.Library.html#method.get
-/// [`os::unix::Library::get_singlethreaded`]: ../../os/unix/struct.Library.html#method.get_singlethreaded
-/// [`Error`]: ../../enum.Error.html
+/// [`Library::get`]: crate::Library::get
+/// [`os::unix::Library::get_singlethreaded`]: crate::os::unix::Library::get_singlethreaded
+/// [`Error`]: crate::Error
 pub mod r0_6_0 {}
 
 
