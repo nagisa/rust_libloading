@@ -1,17 +1,31 @@
-extern crate winapi;
-use self::winapi::shared::minwindef::{WORD, DWORD, HMODULE, FARPROC};
-use self::winapi::shared::ntdef::WCHAR;
-use self::winapi::shared::winerror;
-use self::winapi::um::{errhandlingapi, libloaderapi};
+// A hack for docs.rs to build documentation that has both windows and linux documentation in the
+// same rustdoc build visible.
+#[cfg(all(docsrs, not(windows)))]
+mod windows_imports {
+    pub(super) enum WORD {}
+    pub(super) enum DWORD {}
+    pub(super) enum HMODULE {}
+    pub(super) enum FARPROC {}
+}
+#[cfg(windows)]
+mod windows_imports {
+    extern crate winapi;
+    pub(super) use self::winapi::shared::minwindef::{WORD, DWORD, HMODULE, FARPROC};
+    pub(super) use self::winapi::shared::ntdef::WCHAR;
+    pub(super) use self::winapi::shared::winerror;
+    pub(super) use self::winapi::um::{errhandlingapi, libloaderapi};
+    pub(super) use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    pub(super) const SEM_FAILCE: DWORD = 1;
+}
 
+use self::windows_imports::*;
 use util::{ensure_compatible_types, cstr_cow_from_bytes};
 
 use std::ffi::{OsStr, OsString};
 use std::{fmt, io, marker, mem, ptr};
-use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// A platform-specific equivalent of the cross-platform `Library`.
+/// A platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library(HMODULE);
 
 unsafe impl Send for Library {}
@@ -31,9 +45,16 @@ unsafe impl Send for Library {}
 unsafe impl Sync for Library {}
 
 impl Library {
-    /// Find and load a shared library (module).
+    /// Find and load a module.
     ///
-    /// Corresponds to `LoadLibraryW(filename, reserved: NULL, flags: 0)` which is equivalent to `LoadLibraryW(filename)`
+    /// If the `filename` specifies a full path, the function only searches that path for the
+    /// module. Otherwise, if the `filename` specifies a relative path or a module name without a
+    /// path, the function uses a windows-specific search strategy to find the module; for more
+    /// information, see the [Remarks on MSDN][msdn].
+    ///
+    /// This is equivalent to [`Library::load_with_flags`]`(filename, 0)`.
+    ///
+    /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
@@ -41,12 +62,16 @@ impl Library {
 
     /// Load the `Library` representing the original program executable.
     ///
-    /// Note that this is not a direct equivalent to [`os::unix::Library::this`].
+    /// Note that behaviour of `Library` loaded with this method is different from
+    /// Libraries loaded with [`os::unix::Library::this`]. For more information refer to [MSDN].
+    ///
+    /// Corresponds to `GetModuleHandleExW(0, NULL, _)`.
     ///
     /// [`os::unix::Library::this`]: crate::os::unix::Library::this
+    /// [MSDN]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
     pub fn this() -> Result<Library, crate::Error> {
-        let handle = unsafe {
-            let handle: HMODULE = std::ptr::null_mut();
+        unsafe {
+            let mut handle: HMODULE = std::ptr::null_mut();
             with_get_last_error(|source| crate::Error::GetModuleHandleExW { source }, || {
                 let result = libloaderapi::GetModuleHandleExW(0, std::ptr::null_mut(), &mut handle);
                 if result == 0 {
@@ -54,16 +79,18 @@ impl Library {
                 } else {
                     Some(Library(handle))
                 }
-            }).map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown));
-        };
+            }).map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
+        }
     }
 
-    /// Find and load a shared library (module).
+    /// Find and load a module, additionally adjusting behaviour with flags.
     ///
-    /// Locations where library is searched for is platform specific and can’t be adjusted
-    /// portably.
+    /// See [`Library::new`] for documentation on handling of the `filename` argument. See the
+    /// [flag table on MSDN][flags] for information on applicable values for the `flags` argument.
     ///
-    /// Corresponds to `LoadLibraryW(filename, reserved: NULL, flags)`.
+    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
+    ///
+    /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
     pub fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
@@ -93,7 +120,7 @@ impl Library {
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// This function does not validate the type `T`. It is up to the user of this function to
     /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
@@ -116,7 +143,7 @@ impl Library {
 
     /// Get a pointer to function or static variable by ordinal number.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.
@@ -145,7 +172,7 @@ impl Library {
 
     /// Convert a raw handle to a `Library`.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// The handle shall be a result of a successful call of `LoadLibraryW` or a
     /// handle previously returned by the `Library::into_raw` call.
@@ -255,7 +282,6 @@ struct ErrorModeGuard(DWORD);
 
 impl ErrorModeGuard {
     fn new() -> Option<ErrorModeGuard> {
-        const SEM_FAILCE: DWORD = 1;
         unsafe {
             if !USE_ERRORMODE.load(Ordering::Acquire) {
                 let mut previous_mode = 0;
@@ -354,7 +380,7 @@ mod tests {
     #[test]
     fn library_this_get() {
         use std::sync::atomic::{AtomicBool, Ordering};
-        static VARIABLE = AtomicBool::new();
+        static VARIABLE: AtomicBool = AtomicBool::new();
 
         #[no_mangle]
         extern "C" fn library_this_get_test_fn() {
