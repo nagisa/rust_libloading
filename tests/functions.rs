@@ -18,9 +18,6 @@ fn make_helpers() {
             .arg("--target")
             .arg(env!("LIBLOADING_TEST_TARGET"))
             .arg("-O");
-        if std::env::var_os("LIBLOADING_TEST_NIGHTLY").is_some() {
-            cmd.arg("--cfg").arg("thread_local");
-        }
 
         cmd
             .output()
@@ -142,29 +139,6 @@ fn test_static_ptr() {
         let works: Symbol<unsafe extern fn() -> bool> =
             lib.get(b"test_check_static_ptr\0").unwrap();
         assert!(works());
-    }
-}
-
-#[cfg(any(windows, target_os="linux"))]
-#[test]
-fn test_tls_static() {
-    make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
-    if std::env::var_os("LIBLOADING_TEST_NIGHTLY").is_some() {
-        unsafe {
-            let var: Symbol<*mut u32> = lib.get(b"TEST_THREAD_LOCAL\0").unwrap();
-            **var = 84;
-            let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
-            assert_eq!(84, help());
-        }
-        ::std::thread::spawn(move || unsafe {
-            let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
-            assert_eq!(0, help());
-        }).join().unwrap();
-    } else {
-        unsafe {
-            assert!(lib.get::<Symbol<*mut u32>>(b"TEST_THREAD_LOCAL\0").is_err());
-        }
     }
 }
 
