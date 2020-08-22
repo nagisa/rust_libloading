@@ -406,11 +406,3 @@ struct DlInfo {
   dli_sname: *const raw::c_char,
   dli_saddr: *mut raw::c_void
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn this() {
-        super::Library::this();
-    }
-}

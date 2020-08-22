@@ -128,24 +128,3 @@ impl std::fmt::Display for Error {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn error_send() {
-        fn assert_send<T: Send>() {}
-        assert_send::<super::Error>();
-    }
-
-    #[test]
-    fn error_sync() {
-        fn assert_sync<T: Sync>() {}
-        assert_sync::<super::Error>();
-    }
-
-    #[test]
-    fn error_display() {
-        fn assert_display<T: std::fmt::Display>() {}
-        assert_display::<super::Error>();
-    }
-}
