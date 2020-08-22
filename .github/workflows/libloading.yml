@@ -24,12 +24,17 @@ jobs:
         with:
             toolchain: ${{ matrix.rust_toolchain }}
             profile: minimal
+            components: clippy
             default: true
       - name: Update
         uses: actions-rs/cargo@v1
         with:
           command: update
           args: --manifest-path=Cargo.toml
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -45,6 +50,14 @@ jobs:
         with:
           command: test
           args: --manifest-path=Cargo.toml --release -- --nocapture
+      - name: Documentation
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --manifest-path=Cargo.toml
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+        if: ${{ matrix.rust_toolchain == 'nightly' }}
 
   windows-gnu-test:
     runs-on: windows-latest
@@ -54,10 +67,17 @@ jobs:
         rust_toolchain: [nightly, stable]
         rust_target:
           - x86_64-pc-windows-gnu
-          # Only 64 bit GCC is preinstalled
-          #- i686-pc-windows-gnu
+          - i686-pc-windows-gnu
     steps:
       - uses: actions/checkout@v2
+      - name: Add MSYS2 to the PATH
+        run: echo "::add-path::c:/msys64/bin"
+      - name: Add 32-bit mingw-w64 to the PATH
+        run: echo "::add-path::c:/msys64/mingw32/bin"
+        if: startsWith(matrix.rust_target, 'i686')
+      - name: Add 64-bit mingw-w64 to the PATH
+        run: echo "::add-path::c:/msys64/mingw64/bin"
+        if: startsWith(matrix.rust_target, 'x86_64')
       - name: Install Rust nightly
         uses: actions-rs/toolchain@v1
         with:

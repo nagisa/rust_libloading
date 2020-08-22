@@ -219,11 +219,9 @@ impl Library {
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         #[cfg(mtsafe_dlerror)]
-        { return self.get_singlethreaded(symbol); }
+        { self.get_singlethreaded(symbol) }
         #[cfg(not(mtsafe_dlerror))]
-        {
-            return self.get_impl(symbol, || Err(crate::Error::DlSymUnknown));
-        }
+        { self.get_impl(symbol, || Err(crate::Error::DlSymUnknown)) }
     }
 
     /// Get a pointer to function or static variable by symbol name.
@@ -275,7 +273,7 @@ impl Library {
     /// with this pointer as an argument.
     pub unsafe fn from_raw(handle: *mut raw::c_void) -> Library {
         Library {
-            handle: handle
+            handle
         }
     }
 
@@ -359,7 +357,7 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     fn deref(&self) -> &T {
         unsafe {
             // Additional reference level for a dereference on `deref` return value.
-            mem::transmute(&self.pointer)
+            &*(&self.pointer as *const *mut _ as *const T)
         }
     }
 }

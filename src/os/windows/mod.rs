@@ -265,7 +265,7 @@ impl<T> ::std::ops::Deref for Symbol<T> {
     fn deref(&self) -> &T {
         unsafe {
             // Additional reference level for a dereference on `deref` return value.
-            mem::transmute(&self.pointer)
+            &*(&self.pointer as *const *mut _ as *const T)
         }
     }
 }
@@ -276,11 +276,11 @@ impl<T> fmt::Debug for Symbol<T> {
     }
 }
 
-
 static USE_ERRORMODE: AtomicBool = AtomicBool::new(false);
 struct ErrorModeGuard(DWORD);
 
 impl ErrorModeGuard {
+    #[allow(clippy::if_same_then_else)]
     fn new() -> Option<ErrorModeGuard> {
         unsafe {
             if !USE_ERRORMODE.load(Ordering::Acquire) {
