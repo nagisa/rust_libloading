@@ -6,8 +6,9 @@
 /// Release 0.6.3 (2020-08-22)
 ///
 /// * Improve documentation, allowing to view all of the os-specific functionality from
-/// documentation generated for any target.
-/// * Add [`os::windows::Library::this`].
+/// documentation generated for any target;
+/// * Add [`os::windows::Library::this`];
+/// * Added constants to use with OS-specific `Library::open`.
 ///
 /// [`os::windows::Library::this`]: crate::os::windows::Library::this
 

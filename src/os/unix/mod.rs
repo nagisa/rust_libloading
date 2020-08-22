@@ -3,7 +3,7 @@
 #[cfg(all(docsrs, not(unix)))]
 mod unix_imports {
 }
-#[cfg(unix)]
+#[cfg(any(not(docsrs), unix))]
 mod unix_imports {
     pub(super) use std::os::unix::ffi::OsStrExt;
 }
@@ -13,7 +13,9 @@ use util::{ensure_compatible_types, cstr_cow_from_bytes};
 use std::ffi::{CStr, OsStr};
 use std::{fmt, marker, mem, ptr};
 use std::os::raw;
+pub use self::consts::*;
 
+mod consts;
 
 // dl* family of functions did not have enough thought put into it.
 //
@@ -385,7 +387,6 @@ impl<T> fmt::Debug for Symbol<T> {
 }
 
 // Platform specific things
-
 extern {
     fn dlopen(filename: *const raw::c_char, flags: raw::c_int) -> *mut raw::c_void;
     fn dlclose(handle: *mut raw::c_void) -> raw::c_int;
@@ -393,11 +394,6 @@ extern {
     fn dlerror() -> *mut raw::c_char;
     fn dladdr(addr: *mut raw::c_void, info: *mut DlInfo) -> raw::c_int;
 }
-
-#[cfg(not(target_os="android"))]
-const RTLD_NOW: raw::c_int = 2;
-#[cfg(target_os="android")]
-const RTLD_NOW: raw::c_int = 0;
 
 #[repr(C)]
 struct DlInfo {
