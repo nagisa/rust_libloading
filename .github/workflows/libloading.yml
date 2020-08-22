@@ -26,9 +26,6 @@ jobs:
             profile: minimal
             components: clippy
             default: true
-      - name: Set LIBLOADING_TEST_NIGHTLY
-        run: echo "::set-env name=LIBLOADING_TEST_NIGHTLY::1"
-        if: ${{ matrix.rust_toolchain == 'nightly' }}
       - name: Update
         uses: actions-rs/cargo@v1
         with:
@@ -73,9 +70,6 @@ jobs:
           - i686-pc-windows-gnu
     steps:
       - uses: actions/checkout@v2
-      - name: Set LIBLOADING_TEST_NIGHTLY
-        run: echo "::set-env name=LIBLOADING_TEST_NIGHTLY::1"
-        if: ${{ matrix.rust_toolchain == 'nightly' }}
       - name: Add MSYS2 to the PATH
         run: echo "::add-path::c:/msys64/bin"
       - name: Add 32-bit mingw-w64 to the PATH

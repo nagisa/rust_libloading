@@ -143,9 +143,9 @@ impl Library {
     ///
     /// # Platform-specific behaviour
     ///
-    /// On Linux and Windows, a TLS variable acts just like any regular global variable. OS X uses
-    /// some sort of lazy initialization scheme, which makes loading TLS variables this way
-    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    /// Implementation of thread local variables is extremely platform specific and uses of these
+    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems or
+    /// Windows.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
     /// as FreeBSD), this function will unconditionally return an error the underlying `dlsym` call

@@ -208,8 +208,8 @@ impl Library {
     ///
     /// # Platform-specific behaviour
     ///
-    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
-    /// impossible. Using a TLS variable loaded this way on OS X has no defined behaviour.
+    /// Implementation of thread local variables is extremely platform specific and uses of these
+    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
     /// as FreeBSD), this function will unconditionally return an error when the underlying `dlsym`
@@ -244,8 +244,8 @@ impl Library {
     ///
     /// # Platform-specific behaviour
     ///
-    /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
-    /// impossible. Using a TLS variable loaded this way on OS X has no defined behaviour.
+    /// Implementation of thread local variables is extremely platform specific and uses of these
+    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems.
     #[inline(always)]
     pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || Ok(Symbol {
