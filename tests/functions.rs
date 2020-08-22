@@ -1,19 +1,28 @@
+#[cfg(windows)]
+extern crate winapi;
+
 extern crate libloading;
 use libloading::{Symbol, Library};
 
-const LIBPATH: &'static str = concat!(env!("OUT_DIR"), "/libtest_helpers.dll");
+const LIBPATH: &'static str = concat!(env!("OUT_DIR"), "/libtest_helpers.module");
 
 fn make_helpers() {
     static ONCE: ::std::sync::Once = ::std::sync::Once::new();
     ONCE.call_once(|| {
-        let mut outpath = String::from(if let Some(od) = option_env!("OUT_DIR") { od } else { return });
         let rustc = option_env!("RUSTC").unwrap_or_else(|| { "rustc".into() });
-        outpath.push_str(&"/libtest_helpers.dll"); // extension for windows required, POSIX does not care.
-        let _ = ::std::process::Command::new(rustc)
+        let mut cmd = ::std::process::Command::new(rustc);
+        cmd
             .arg("src/test_helpers.rs")
             .arg("-o")
-            .arg(outpath)
-            .arg("-O")
+            .arg(LIBPATH)
+            .arg("--target")
+            .arg(env!("LIBLOADING_TEST_TARGET"))
+            .arg("-O");
+        if std::env::var_os("LIBLOADING_TEST_NIGHTLY").is_some() {
+            cmd.arg("--cfg").arg("thread_local");
+        }
+
+        cmd
             .output()
             .expect("could not compile the test helpers!");
     });
@@ -137,19 +146,91 @@ fn test_static_ptr() {
 }
 
 #[cfg(any(windows, target_os="linux"))]
-#[cfg(test_nightly)]
 #[test]
 fn test_tls_static() {
     make_helpers();
     let lib = Library::new(LIBPATH).unwrap();
-    unsafe {
-        let var: Symbol<*mut u32> = lib.get(b"TEST_THREAD_LOCAL\0").unwrap();
-        **var = 84;
-        let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
-        assert_eq!(84, help());
+    if std::env::var_os("LIBLOADING_TEST_NIGHTLY").is_some() {
+        unsafe {
+            let var: Symbol<*mut u32> = lib.get(b"TEST_THREAD_LOCAL\0").unwrap();
+            **var = 84;
+            let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
+            assert_eq!(84, help());
+        }
+        ::std::thread::spawn(move || unsafe {
+            let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
+            assert_eq!(0, help());
+        }).join().unwrap();
+    } else {
+        unsafe {
+            assert!(lib.get::<Symbol<*mut u32>>(b"TEST_THREAD_LOCAL\0").is_err());
+        }
     }
-    ::std::thread::spawn(move || unsafe {
-        let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_thread_local\0").unwrap();
-        assert_eq!(0, help());
-    }).join().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn library_this_get() {
+    use libloading::os::unix::Library;
+    make_helpers();
+    let _lib = Library::new(LIBPATH).unwrap();
+    let this = Library::this();
+    // SAFE: functions are never called
+    unsafe {
+        // Library we loaded in `_lib` (should be RTLD_LOCAL).
+        // FIXME: inconsistent behaviour between macos and other posix systems
+        // assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
+        // Something obscure from libc...
+        assert!(this.get::<unsafe extern "C" fn()>(b"freopen").is_ok());
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn library_this() {
+    use libloading::os::windows::Library;
+    make_helpers();
+    let _lib = Library::new(LIBPATH).unwrap();
+    let this = Library::this().expect("this library");
+    // SAFE: functions are never called
+    unsafe {
+        // Library we loaded in `_lib`.
+        assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
+        // Something "obscure" from kernel32...
+        assert!(this.get::<unsafe extern "C" fn()>(b"GetLastError").is_err());
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn works_getlasterror() {
+    use winapi::um::errhandlingapi;
+    use winapi::shared::minwindef::DWORD;
+    use libloading::os::windows::{Library, Symbol};
+
+    let lib = Library::new("kernel32.dll").unwrap();
+    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
+        lib.get(b"GetLastError").unwrap()
+    };
+    unsafe {
+        errhandlingapi::SetLastError(42);
+        assert_eq!(errhandlingapi::GetLastError(), gle())
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn works_getlasterror0() {
+    use winapi::um::errhandlingapi;
+    use winapi::shared::minwindef::DWORD;
+    use libloading::os::windows::{Library, Symbol};
+
+    let lib = Library::new("kernel32.dll").unwrap();
+    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
+        lib.get(b"GetLastError\0").unwrap()
+    };
+    unsafe {
+        errhandlingapi::SetLastError(42);
+        assert_eq!(errhandlingapi::GetLastError(), gle())
+    }
 }

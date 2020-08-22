@@ -1,7 +1,7 @@
 //! This is a separate file containing helpers for tests of this library. It is built into a
 //! dynamic library by the build.rs script.
-#![crate_type="dylib"] // FIXME: should become a cdylib in due time
-#![cfg_attr(test_nightly, feature(thread_local))]
+#![crate_type="cdylib"]
+#![cfg_attr(thread_local, feature(thread_local))]
 
 #[no_mangle]
 pub static mut TEST_STATIC_U32: u32 = 0;
@@ -9,7 +9,7 @@ pub static mut TEST_STATIC_U32: u32 = 0;
 #[no_mangle]
 pub static mut TEST_STATIC_PTR: *mut () = 0 as *mut _;
 
-#[cfg(test_nightly)]
+#[cfg(thread_local)]
 #[thread_local]
 #[no_mangle]
 pub static mut TEST_THREAD_LOCAL: u32 = 0;
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn test_check_static_ptr() -> bool {
     TEST_STATIC_PTR == (&mut TEST_STATIC_PTR as *mut *mut _ as *mut _)
 }
 
-#[cfg(test_nightly)]
+#[cfg(thread_local)]
 #[no_mangle]
 pub unsafe extern "C" fn test_get_thread_local() -> u32 {
     TEST_THREAD_LOCAL

@@ -61,4 +61,11 @@ fn main() {
             ::std::process::exit(0xfd);
         }
     }
+
+    // For tests
+    println!(
+        "cargo:rustc-env=LIBLOADING_TEST_TARGET={}",
+        std::env::var("TARGET").expect("$TARGET is not set")
+    );
+    println!("cargo:rerun-if-env-changed=LIBLOADING_TEST_NIGHTLY");
 }
