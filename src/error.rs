@@ -35,6 +35,13 @@ pub enum Error {
     LoadLibraryW { source: WindowsError },
     /// The `LoadLibraryW` call failed and system did not report an error.
     LoadLibraryWUnknown,
+    /// The `GetModuleHandleExW` call failed.
+    GetModuleHandleExW {
+        /// The source error.
+        source: WindowsError
+    },
+    /// The `LoadLibraryW` call failed and system did not report an error.
+    GetModuleHandleExWUnknown,
     /// The `GetProcAddress` call failed.
     GetProcAddress { source: WindowsError },
     /// The `GetProcAddressUnknown` call failed and system did not report an error.
@@ -75,9 +82,12 @@ impl std::fmt::Display for Error {
             DlSymUnknown => write!(f, "dlsym failed, but system did not report the error"),
             DlClose { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
             DlCloseUnknown => write!(f, "dlclose failed, but system did not report the error"),
-            LoadLibraryW { .. } => write!(f, "LoadLibraryW failed"),
+            LoadLibraryW { .. } => write!(f, "LoadLibraryExW failed"),
             LoadLibraryWUnknown =>
-                write!(f, "LoadLibraryW failed, but system did not report the error"),
+                write!(f, "LoadLibraryExW failed, but system did not report the error"),
+            GetModuleHandleExW { .. } => write!(f, "GetModuleHandleExW failed"),
+            GetModuleHandleExWUnknown =>
+                write!(f, "GetModuleHandleExWUnknown failed, but system did not report the error"),
             GetProcAddress { .. } => write!(f, "GetProcAddress failed"),
             GetProcAddressUnknown =>
                 write!(f, "GetProcAddress failed, but system did not report the error"),

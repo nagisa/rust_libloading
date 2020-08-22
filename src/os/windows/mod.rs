@@ -39,6 +39,25 @@ impl Library {
         Library::load_with_flags(filename, 0)
     }
 
+    /// Load the `Library` representing the original program executable.
+    ///
+    /// Note that this is not a direct equivalent to [`os::unix::Library::this`].
+    ///
+    /// [`os::unix::Library::this`]: crate::os::unix::Library::this
+    pub fn this() -> Result<Library, crate::Error> {
+        let handle = unsafe {
+            let handle: HMODULE = std::ptr::null_mut();
+            with_get_last_error(|source| crate::Error::GetModuleHandleExW { source }, || {
+                let result = libloaderapi::GetModuleHandleExW(0, std::ptr::null_mut(), &mut handle);
+                if result == 0 {
+                    None
+                } else {
+                    Some(Library(handle))
+                }
+            }).map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown));
+        };
+    }
+
     /// Find and load a shared library (module).
     ///
     /// Locations where library is searched for is platform specific and can’t be adjusted
@@ -52,7 +71,9 @@ impl Library {
         let ret = with_get_last_error(|source| crate::Error::LoadLibraryW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
-            let handle = unsafe { libloaderapi::LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), flags) };
+            let handle = unsafe {
+                libloaderapi::LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), flags)
+            };
             if handle.is_null()  {
                 None
             } else {
@@ -328,5 +349,23 @@ mod tests {
             errhandlingapi::SetLastError(42);
             assert_eq!(errhandlingapi::GetLastError(), gle())
         }
+    }
+
+    #[test]
+    fn library_this_get() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static VARIABLE = AtomicBool::new();
+
+        #[no_mangle]
+        extern "C" fn library_this_get_test_fn() {
+            VARIABLE.store(true, Ordering::SeqCst);
+        }
+        let lib = Library::this().expect("this library");
+        let test_fn: Symbol<unsafe extern "C" fn()> = unsafe {
+            lib.get(b"library_this_get_test_fn\0").expect("get symbol");
+        };
+        assert_eq!(VARIABLE.load(Ordering::SeqCst), false);
+        test_fn();
+        assert_eq!(VARIABLE.load(Ordering::SeqCst), true);
     }
 }
