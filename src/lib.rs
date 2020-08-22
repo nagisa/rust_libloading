@@ -36,6 +36,16 @@
 //!
 //! The compiler will ensure that the loaded `function` will not outlive the `Library` it comes
 //! from, preventing a common cause of undefined behaviour and memory safety problems.
+#![deny(
+    missing_docs,
+    clippy::all,
+    unreachable_pub,
+    unused,
+)]
+#![cfg_attr(docsrs, deny(broken_intra_doc_links))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+
 use std::ffi::OsStr;
 use std::fmt;
 use std::ops;
@@ -64,7 +74,7 @@ impl Library {
     /// * Absolute path to the library;
     /// * Relative (to the current working directory) path to the library.
     ///
-    /// ## Thread-safety
+    /// # Thread-safety
     ///
     /// The implementation strives to be as MT-safe as sanely possible, however due to certain
     /// error-handling related resources not always being safe, this library is not MT-safe either.
@@ -80,12 +90,12 @@ impl Library {
     /// path-less filename and library search path is modified (`SetDllDirectory` function on
     /// Windows, `{DY,}LD_LIBRARY_PATH` environment variable on UNIX).
     ///
-    /// ## Platform-specific behaviour
+    /// # Platform-specific behaviour
     ///
     /// When a plain library filename is supplied, locations where library is searched for is
     /// platform specific and cannot be adjusted in a portable manner.
     ///
-    /// ### Windows
+    /// ## Windows
     ///
     /// If the `filename` specifies a library filename without path and with extension omitted,
     /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
@@ -95,7 +105,7 @@ impl Library {
     /// `#[thread_local]` attributes), loading the library will fail on versions prior to Windows
     /// Vista.
     ///
-    /// ## Tips
+    /// # Tips
     ///
     /// Distributing your dynamic libraries under a filename common to all platforms (e.g.
     /// `awesome.module`) allows to avoid code which has to account for platform’s conventional
@@ -105,7 +115,7 @@ impl Library {
     /// are being loaded.  Platform-dependent library search locations combined with various quirks
     /// related to path-less filenames may cause flaky code.
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// ```no_run
     /// # use ::libloading::Library;
@@ -126,12 +136,12 @@ impl Library {
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
     /// undefined.
     ///
-    /// ## Platform-specific behaviour
+    /// # Platform-specific behaviour
     ///
     /// On Linux and Windows, a TLS variable acts just like any regular global variable. OS X uses
     /// some sort of lazy initialization scheme, which makes loading TLS variables this way
@@ -143,7 +153,7 @@ impl Library {
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`os::unix::Library::get_singlethreaded`] call.
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// Given a loaded library:
     ///
@@ -232,12 +242,13 @@ pub struct Symbol<'lib, T: 'lib> {
 impl<'lib, T> Symbol<'lib, T> {
     /// Extract the wrapped `os::platform::Symbol`.
     ///
-    /// ## Unsafety
+    /// # Safety
+    ///
     /// Using this function relinquishes all the lifetime guarantees. It is up to programmer to
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
@@ -256,12 +267,12 @@ impl<'lib, T> Symbol<'lib, T> {
     /// Note that, in order to create association between the symbol and the library this symbol
     /// came from, this function requires reference to the library provided.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// It is invalid to provide a reference to any other value other than the library the `sym`
     /// was loaded from. Doing so invalidates any lifetime guarantees.
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
@@ -283,7 +294,7 @@ impl<'lib, T> Symbol<'lib, T> {
 impl<'lib, T> Symbol<'lib, Option<T>> {
     /// Lift Option out of the symbol.
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};

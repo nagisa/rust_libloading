@@ -1,9 +1,19 @@
-use util::{ensure_compatible_types, cstr_cow_from_bytes};
+// A hack for docs.rs to build documentation that has both windows and linux documentation in the
+// same rustdoc build visible.
+#[cfg(all(docsrs, not(unix)))]
+mod unix_imports {
+}
+#[cfg(unix)]
+mod unix_imports {
+    pub(super) use std::os::unix::ffi::OsStrExt;
+}
 
+use self::unix_imports::*;
+use util::{ensure_compatible_types, cstr_cow_from_bytes};
 use std::ffi::{CStr, OsStr};
 use std::{fmt, marker, mem, ptr};
 use std::os::raw;
-use std::os::unix::ffi::OsStrExt;
+
 
 // dl* family of functions did not have enough thought put into it.
 //
@@ -61,7 +71,7 @@ where F: FnOnce() -> Option<T> {
     })
 }
 
-/// A platform-specific equivalent of the cross-platform `Library`.
+/// A platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library {
     handle: *mut raw::c_void
 }
@@ -85,34 +95,45 @@ unsafe impl Send for Library {}
 unsafe impl Sync for Library {}
 
 impl Library {
-    /// Find and load a shared library (module).
+    /// Find and eagerly load a shared library (module).
     ///
-    /// Locations where library is searched for is platform specific and can’t be adjusted
-    /// portably.
+    /// If the `filename` contains a [path separator], the `filename` is interpreted as a `path` to
+    /// a file. Otherwise, platform-specific algorithms are employed to find a library with a
+    /// matching file name.
     ///
-    /// Corresponds to `dlopen(filename, RTLD_NOW)`.
+    /// This is equivalent to [`Library::open`]`(filename, RTLD_NOW)`.
+    ///
+    /// [path separator]: std::path::MAIN_SEPARATOR
     #[inline]
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_NOW)
     }
 
-    /// Load the dynamic libraries linked into main program.
+    /// Eagerly load the `Library` representing the current executable.
     ///
-    /// This allows retrieving symbols from any **dynamic** library linked into the program,
-    /// without specifying the exact library.
+    /// [`Library::get`] calls of the returned `Library` will look for symbols in following
+    /// locations in order:
     ///
-    /// Corresponds to `dlopen(NULL, RTLD_NOW)`.
+    /// 1. Original program image;
+    /// 2. Any executable object files (e.g. shared libraries) loaded at program startup;
+    /// 3. Executable object files loaded at runtime (e.g. via other `Library::new` calls or via
+    ///    calls to the `dlopen` function)
+    ///
+    /// Note that behaviour of `Library` loaded with this method is different from
+    /// Libraries loaded with [`os::windows::Library::this`].
+    ///
+    /// This is equivalent to [`Library::open`]`(None, RTLD_NOW)`.
+    ///
+    /// [`os::windows::Library::this`]: crate::os::windows::Library::this
     #[inline]
     pub fn this() -> Library {
         Library::open(None::<&OsStr>, RTLD_NOW).expect("this should never fail")
     }
 
-    /// Find and load a shared library (module).
+    /// Find and load an executable object file (shared library).
     ///
-    /// Locations where library is searched for is platform specific and can’t be adjusted
-    /// portably.
-    ///
-    /// If the `filename` is None, null pointer is passed to `dlopen`.
+    /// See documentation for [`Library::this`] for further description of behaviour
+    /// when the `filename` is `None`. Otherwise see [`Library::new`].
     ///
     /// Corresponds to `dlopen(filename, flags)`.
     pub fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
@@ -174,29 +195,27 @@ impl Library {
     /// Get a pointer to function or static variable by symbol name.
     ///
     /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
-    /// terminated `symbol` may avoid a string allocation in some cases.
+    /// terminated `symbol` may avoid an allocation in some cases.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// This function does not validate the type `T`. It is up to the user of this function to
     /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
-    /// definied behaviour.
+    /// defined behaviour.
     ///
-    ///
-    ///
-    /// ## Platform-specific behaviour
+    /// # Platform-specific behaviour
     ///
     /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
-    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    /// impossible. Using a TLS variable loaded this way on OS X has no defined behaviour.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
-    /// as FreeBSD), this function will unconditionally return an error the underlying `dlsym` call
-    /// returns a null pointer. There are rare situations where `dlsym` returns a genuine null
-    /// pointer without it being an error. If loading a null pointer is something you care about,
-    /// consider using the [`Library::get_singlethreaded`] call.
+    /// as FreeBSD), this function will unconditionally return an error when the underlying `dlsym`
+    /// call returns a null pointer. There are rare situations where `dlsym` returns a genuine null
+    /// pointer without it being an error. If loading a symbol at null address is something you
+    /// care about, consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         #[cfg(mtsafe_dlerror)]
@@ -215,20 +234,20 @@ impl Library {
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// This function does not validate the type `T`. It is up to the user of this function to
     /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
-    /// definied behaviour.
+    /// defined behaviour.
     ///
     /// It is up to the user of this library to ensure that no other calls to an MT-unsafe
-    /// implementation of `dlerror` occur while this function is executing. Failing that the
-    /// results of this function are not defined.
+    /// implementation of `dlerror` occur during execution of this function. Failing that, the
+    /// behaviour of this function is not defined.
     ///
-    /// ## Platform-specific behaviour
+    /// # Platform-specific behaviour
     ///
     /// OS X uses some sort of lazy initialization scheme, which makes loading TLS variables
-    /// impossible. Using a TLS variable loaded this way on OS X is undefined behaviour.
+    /// impossible. Using a TLS variable loaded this way on OS X has no defined behaviour.
     #[inline(always)]
     pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || Ok(Symbol {
@@ -249,7 +268,7 @@ impl Library {
 
     /// Convert a raw handle returned by `dlopen`-family of calls to a `Library`.
     ///
-    /// ## Unsafety
+    /// # Safety
     ///
     /// The pointer shall be a result of a successful call of the `dlopen`-family of functions or a
     /// pointer previously returned by `Library::into_raw` call. It must be valid to call `dlclose`
@@ -266,8 +285,7 @@ impl Library {
     /// what library was opened or other platform specifics.
     ///
     /// You only need to call this if you are interested in handling any errors that may arise when
-    /// library is unloaded. Otherwise the implementation of `Drop` for `Library` will close the
-    /// library and ignore the errors were they arise.
+    /// library is unloaded. Otherwise this will be done when `Library` is dropped.
     pub fn close(self) -> Result<(), crate::Error> {
         let result = with_dlerror(|desc| crate::Error::DlClose { desc }, || {
             if unsafe { dlclose(self.handle) } == 0 {

@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+/// A `dlerror` error.
 pub struct DlDescription(pub(crate) CString);
 
 impl std::fmt::Debug for DlDescription {
@@ -8,6 +9,7 @@ impl std::fmt::Debug for DlDescription {
     }
 }
 
+/// A Windows API error.
 pub struct WindowsError(pub(crate) std::io::Error);
 
 impl std::fmt::Debug for WindowsError {
@@ -16,23 +18,36 @@ impl std::fmt::Debug for WindowsError {
     }
 }
 
+/// Errors.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// The `dlopen` call failed.
-    DlOpen { desc: DlDescription },
+    DlOpen {
+        /// The source error.
+        desc: DlDescription
+    },
     /// The `dlopen` call failed and system did not report an error.
     DlOpenUnknown,
     /// The `dlsym` call failed.
-    DlSym { desc: DlDescription },
+    DlSym {
+        /// The source error.
+        desc: DlDescription
+    },
     /// The `dlsym` call failed and system did not report an error.
     DlSymUnknown,
     /// The `dlclose` call failed.
-    DlClose { desc: DlDescription },
+    DlClose {
+        /// The source error.
+        desc: DlDescription
+    },
     /// The `dlclose` call failed and system did not report an error.
     DlCloseUnknown,
     /// The `LoadLibraryW` call failed.
-    LoadLibraryW { source: WindowsError },
+    LoadLibraryW {
+        /// The source error.
+        source: WindowsError
+    },
     /// The `LoadLibraryW` call failed and system did not report an error.
     LoadLibraryWUnknown,
     /// The `GetModuleHandleExW` call failed.
@@ -43,19 +58,31 @@ pub enum Error {
     /// The `LoadLibraryW` call failed and system did not report an error.
     GetModuleHandleExWUnknown,
     /// The `GetProcAddress` call failed.
-    GetProcAddress { source: WindowsError },
+    GetProcAddress {
+        /// The source error.
+        source: WindowsError
+    },
     /// The `GetProcAddressUnknown` call failed and system did not report an error.
     GetProcAddressUnknown,
     /// The `FreeLibrary` call failed.
-    FreeLibrary { source: WindowsError },
+    FreeLibrary {
+        /// The source error.
+        source: WindowsError
+    },
     /// The `FreeLibrary` call failed and system did not report an error.
     FreeLibraryUnknown,
     /// The requested type cannot possibly work.
     IncompatibleSize,
     /// Could not create a new CString.
-    CreateCString { source: std::ffi::NulError },
+    CreateCString {
+        /// The source error.
+        source: std::ffi::NulError
+    },
     /// Could not create a new CString from bytes with trailing null.
-    CreateCStringWithTrailing { source: std::ffi::FromBytesWithNulError },
+    CreateCStringWithTrailing {
+        /// The source error.
+        source: std::ffi::FromBytesWithNulError
+    },
 }
 
 impl std::error::Error for Error {
