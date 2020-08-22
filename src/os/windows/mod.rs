@@ -3,11 +3,27 @@
 #[cfg(all(docsrs, not(windows)))]
 mod windows_imports {
     pub(super) enum WORD {}
-    pub(super) enum DWORD {}
+    pub(super) struct DWORD;
     pub(super) enum HMODULE {}
     pub(super) enum FARPROC {}
+
+    pub(super) mod consts {
+        use super::DWORD;
+        pub(crate) const LOAD_IGNORE_CODE_AUTHZ_LEVEL: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_AS_DATAFILE: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_AS_IMAGE_RESOURCE: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SEARCH_SYSTEM32: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SEARCH_USER_DIRS: DWORD = DWORD;
+        pub(crate) const LOAD_WITH_ALTERED_SEARCH_PATH: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: DWORD = DWORD;
+        pub(crate) const LOAD_LIBRARY_SAFE_CURRENT_DIRS: DWORD = DWORD;
+    }
 }
-#[cfg(windows)]
+#[cfg(any(not(docsrs), windows))]
 mod windows_imports {
     extern crate winapi;
     pub(super) use self::winapi::shared::minwindef::{WORD, DWORD, HMODULE, FARPROC};
@@ -16,11 +32,27 @@ mod windows_imports {
     pub(super) use self::winapi::um::{errhandlingapi, libloaderapi};
     pub(super) use std::os::windows::ffi::{OsStrExt, OsStringExt};
     pub(super) const SEM_FAILCE: DWORD = 1;
+
+    pub(super) mod consts {
+        pub(crate) use super::winapi::um::libloaderapi::{
+            LOAD_IGNORE_CODE_AUTHZ_LEVEL,
+            LOAD_LIBRARY_AS_DATAFILE,
+            LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE,
+            LOAD_LIBRARY_AS_IMAGE_RESOURCE,
+            LOAD_LIBRARY_SEARCH_APPLICATION_DIR,
+            LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+            LOAD_LIBRARY_SEARCH_SYSTEM32,
+            LOAD_LIBRARY_SEARCH_USER_DIRS,
+            LOAD_WITH_ALTERED_SEARCH_PATH,
+            LOAD_LIBRARY_REQUIRE_SIGNED_TARGET,
+            LOAD_LIBRARY_SAFE_CURRENT_DIRS,
+        };
+    }
 }
 
 use self::windows_imports::*;
 use util::{ensure_compatible_types, cstr_cow_from_bytes};
-
 use std::ffi::{OsStr, OsString};
 use std::{fmt, io, marker, mem, ptr};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -348,3 +380,115 @@ where F: FnOnce() -> Option<T> {
         }
     })
 }
+
+/// Do not check AppLocker rules or apply Software Restriction Policies for the DLL.
+///
+/// This action applies only to the DLL being loaded and not to its dependencies. This value is
+/// recommended for use in setup programs that must run extracted DLLs during installation.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_IGNORE_CODE_AUTHZ_LEVEL: DWORD = consts::LOAD_IGNORE_CODE_AUTHZ_LEVEL;
+
+/// Map the file into the calling process’ virtual address space as if it were a data file.
+///
+/// Nothing is done to execute or prepare to execute the mapped file. Therefore, you cannot call
+/// functions like [`Library::get`] with this DLL. Using this value causes writes to read-only
+/// memory to raise an access violation. Use this flag when you want to load a DLL only to extract
+/// messages or resources from it.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_AS_DATAFILE: DWORD = consts::LOAD_LIBRARY_AS_DATAFILE;
+
+/// Map the file into the calling process’ virtual address space as if it were a data file.
+///
+/// Similar to [`LOAD_LIBRARY_AS_DATAFILE`], except that the DLL file is opened with exclusive
+/// write access for the calling process. Other processes cannot open the DLL file for write access
+/// while it is in use. However, the DLL can still be opened by other processes.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: DWORD = consts::LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE;
+
+/// Map the file into the process’ virtual address space as an image file.
+///
+/// The loader does not load the static imports or perform the other usual initialization steps.
+/// Use this flag when you want to load a DLL only to extract messages or resources from it.
+///
+/// Unless the application depends on the file having the in-memory layout of an image, this value
+/// should be used with either [`LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE`] or
+/// [`LOAD_LIBRARY_AS_DATAFILE`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_AS_IMAGE_RESOURCE: DWORD = consts::LOAD_LIBRARY_AS_IMAGE_RESOURCE;
+
+/// Search application's installation directory for the DLL and its dependencies.
+///
+/// Directories in the standard search path are not searched. This value cannot be combined with
+/// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: DWORD = consts::LOAD_LIBRARY_SEARCH_APPLICATION_DIR;
+
+/// Search default directories when looking for the DLL and its dependencies.
+///
+/// This value is a combination of [`LOAD_LIBRARY_SEARCH_APPLICATION_DIR`],
+/// [`LOAD_LIBRARY_SEARCH_SYSTEM32`], and [`LOAD_LIBRARY_SEARCH_USER_DIRS`]. Directories in the
+/// standard search path are not searched. This value cannot be combined with
+/// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: DWORD = consts::LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
+
+/// Directory that contains the DLL is temporarily added to the beginning of the list of
+/// directories that are searched for the DLL’s dependencies.
+///
+/// Directories in the standard search path are not searched.
+///
+/// The `filename` parameter must specify a fully qualified path. This value cannot be combined
+/// with [`LOAD_WITH_ALTERED_SEARCH_PATH`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: DWORD = consts::LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
+
+/// Search `%windows%\system32` for the DLL and its dependencies.
+///
+/// Directories in the standard search path are not searched. This value cannot be combined with
+/// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SEARCH_SYSTEM32: DWORD = consts::LOAD_LIBRARY_SEARCH_SYSTEM32;
+
+///  Directories added using the `AddDllDirectory` or the `SetDllDirectory` function are searched
+///  for the DLL and its dependencies.
+///
+///  If more than one directory has been added, the order in which the directories are searched is
+///  unspecified. Directories in the standard search path are not searched. This value cannot be
+///  combined with [`LOAD_WITH_ALTERED_SEARCH_PATH`].
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SEARCH_USER_DIRS: DWORD = consts::LOAD_LIBRARY_SEARCH_USER_DIRS;
+
+/// If `filename specifies an absolute path, the system uses the alternate file search strategy
+/// discussed in the [Remarks section] to find associated executable modules that the specified
+/// module causes to be loaded.
+///
+/// If this value is used and `filename` specifies a relative path, the behavior is undefined.
+///
+/// If this value is not used, or if `filename` does not specify a path, the system uses the
+/// standard search strategy discussed in the [Remarks section] to find associated executable
+/// modules that the specified module causes to be loaded.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+///
+/// [Remarks]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#remarks
+pub const LOAD_WITH_ALTERED_SEARCH_PATH: DWORD = consts::LOAD_WITH_ALTERED_SEARCH_PATH;
+
+/// Specifies that the digital signature of the binary image must be checked at load time.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: DWORD = consts::LOAD_LIBRARY_REQUIRE_SIGNED_TARGET;
+
+/// Allow loading a DLL for execution from the current directory only if it is under a directory in
+/// the Safe load list.
+///
+/// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
+pub const LOAD_LIBRARY_SAFE_CURRENT_DIRS: DWORD = consts::LOAD_LIBRARY_SAFE_CURRENT_DIRS;
