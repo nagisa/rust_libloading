@@ -1,16 +1,18 @@
 //! Project changelog
 
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
-
+// TODO: for the next breaking release use `RTLD_LAZY | RTLD_LOCAL` by default  on unix.
 
 /// Release 0.6.3 (2020-08-22)
 ///
 /// * Improve documentation, allowing to view all of the os-specific functionality from
 /// documentation generated for any target;
 /// * Add [`os::windows::Library::this`];
-/// * Added constants to use with OS-specific `Library::open`.
+/// * Added constants to use with OS-specific `Library::open`;
+/// * Add [`library_filename`].
 ///
 /// [`os::windows::Library::this`]: crate::os::windows::Library::this
+/// [`library_filename`]: crate::library_filename
 
 /// Release 0.6.2 (2020-05-06)
 ///
