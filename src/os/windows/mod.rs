@@ -84,6 +84,10 @@ impl Library {
     /// path, the function uses a windows-specific search strategy to find the module; for more
     /// information, see the [Remarks on MSDN][msdn].
     ///
+    /// If the `filename` specifies a library filename without path and with extension omitted,
+    /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
+    /// trailing `.` to the `filename`.
+    ///
     /// This is equivalent to [`Library::load_with_flags`]`(filename, 0)`.
     ///
     /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks

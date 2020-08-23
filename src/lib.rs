@@ -45,12 +45,10 @@
 #![cfg_attr(docsrs, deny(broken_intra_doc_links))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-
-use std::borrow::Cow;
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fmt;
-use std::ops::{self, Deref};
+use std::ops;
 use std::marker;
 
 #[cfg(unix)]
@@ -89,13 +87,15 @@ impl Library {
     /// [`SetErrorMode`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms680621(v=vs.85).aspx
     ///
     /// Calling this function from multiple threads is not safe if used in conjunction with
-    /// path-less filename and library search path is modified (`SetDllDirectory` function on
+    /// relative filenames and the library search path is modified (`SetDllDirectory` function on
     /// Windows, `{DY,}LD_LIBRARY_PATH` environment variable on UNIX).
     ///
     /// # Platform-specific behaviour
     ///
     /// When a plain library filename is supplied, locations where library is searched for is
-    /// platform specific and cannot be adjusted in a portable manner.
+    /// platform specific and cannot be adjusted in a portable manner. See documentation for
+    /// the platform specific [`os::unix::Library::new`] and [`os::windows::Library::new`] methods
+    /// for further information on library lookup behaviour.
     ///
     /// ## Windows
     ///
@@ -113,9 +113,10 @@ impl Library {
     /// `awesome.module`) allows to avoid code which has to account for platform’s conventional
     /// library filenames.
     ///
-    /// Strive to specify absolute or relative path to your library, unless system-wide libraries
-    /// are being loaded.  Platform-dependent library search locations combined with various quirks
-    /// related to path-less filenames may cause flaky code.
+    /// Strive to specify an absolute or at least a relative path to your library, unless
+    /// system-wide libraries are being loaded. Platform-dependent library search locations
+    /// combined with various quirks related to path-less filenames may cause flakiness in
+    /// programs.
     ///
     /// # Examples
     ///
@@ -128,35 +129,6 @@ impl Library {
     /// ```
     pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
-    }
-
-    fn resolve_name<'a>(name: &'a str) -> Cow<'a, str> {
-        match (name.starts_with(DLL_PREFIX), name.ends_with(DLL_SUFFIX)) {
-            (true, true) => Cow::Borrowed(name),
-            (true, false) => Cow::Owned(format!("{}{}", name, DLL_SUFFIX)),
-            (false, true) => Cow::Owned(format!("{}{}", DLL_PREFIX, name)),
-            (false, false) => Cow::Owned(format!("{}{}{}", DLL_PREFIX, name, DLL_SUFFIX)),
-        }
-    }
-
-    /// Loads a library and does resolve it's name to match platform-specific
-    /// naming schemes.
-    ///
-    /// For a given library called `engine`, this method will resolve the name
-    /// to the following:
-    /// - `Linux`: `libengine.so`
-    /// - `macOS`: `libengine.dylib`
-    /// - `Windows`: `engine.dll`
-    ///
-    /// # Note
-    ///
-    /// This function does only work with library names and does not work when
-    /// supplying a path to a library. The function assumes that the library is
-    /// already present inside a path that is detectable and searchable by the
-    /// OS during runtime.
-    pub fn with_name_resolve<T: AsRef<str>>(libname: T) -> Result<Library, Error> {
-        let resolved_name = Self::resolve_name(libname.as_ref());
-        Self::new(resolved_name.deref())
     }
 
     /// Get a pointer to function or static variable by symbol name.
@@ -369,109 +341,26 @@ impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
 unsafe impl<'lib, T: Send> Send for Symbol<'lib, T> {}
 unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
 
-#[cfg(test)]
-mod tests {
-    use super::Library;
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn test_resolve_name_none() {
-        let name = "audioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "audioengine.dll");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_resolve_name_none() {
-        let name = "audioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.so");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_resolve_name_none() {
-        let name = "audioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.dylib");
-    }
-
-    // prefix only
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn test_resolve_name_prefix() {
-        let name = "audioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "audioengine.dll");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_resolve_name_prefix() {
-        let name = "libaudioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.so");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_resolve_name_prefix() {
-        let name = "libaudioengine";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.dylib");
-    }
-
-    // suffix only
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn test_resolve_name_suffix() {
-        let name = "audioengine.dll";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "audioengine.dll");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_resolve_name_suffix() {
-        let name = "audioengine.so";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.so");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_resolve_name_suffix() {
-        let name = "audioengine.dylib";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.dylib");
-    }
-
-    // both
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn test_resolve_name_prefix_and_suffix() {
-        let name = "audioengine.dll";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "audioengine.dll");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_resolve_name_prefix_and_suffix() {
-        let name = "libaudioengine.so";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.so");
-    }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn test_resolve_name_prefix_and_suffix() {
-        let name = "libaudioengine.dylib";
-        let resolved = Library::resolve_name(name);
-        assert_eq!(&resolved, "libaudioengine.dylib");
-    }
+/// Converts a library name to a filename generally appropriate for use on the system.
+///
+/// The function will prepend prefixes (such as `lib`) and suffixes (such as `.so`) to the library
+/// `name` to construct the filename.
+///
+/// # Examples
+///
+/// It can be used to load global libraries in a platform independent manner:
+///
+/// ```
+/// use libloading::{Library, library_filename};
+/// // Will attempt to load `libLLVM.so` on Linux, `libLLVM.dylib` on macOS and `LLVM.dll` on
+/// // Windows.
+/// let library = Library::new(library_filename("LLVM"));
+/// ```
+pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
+    let name = name.as_ref();
+    let mut string = OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
+    string.push(DLL_PREFIX);
+    string.push(name);
+    string.push(DLL_SUFFIX);
+    string
 }
