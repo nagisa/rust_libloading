@@ -3,6 +3,12 @@
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
 // TODO: for the next breaking release use `RTLD_LAZY | RTLD_LOCAL` by default  on unix.
 
+/// Release 0.6.4 (2020-10-10)
+///
+/// * Remove use of `build.rs` making it easier to build `libloading` without cargo. It also
+/// almost halves the build time of this crate.
+pub mod r0_6_4 {}
+
 /// Release 0.6.3 (2020-08-22)
 ///
 /// * Improve documentation, allowing to view all of the os-specific functionality from
@@ -13,6 +19,7 @@
 ///
 /// [`os::windows::Library::this`]: crate::os::windows::Library::this
 /// [`library_filename`]: crate::library_filename
+pub mod r0_6_3 {}
 
 /// Release 0.6.2 (2020-05-06)
 ///
