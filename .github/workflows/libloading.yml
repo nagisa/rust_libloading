@@ -71,13 +71,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Add MSYS2 to the PATH
-        run: echo "::add-path::c:/msys64/bin"
+        run: echo "c:/msys64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Add 32-bit mingw-w64 to the PATH
-        run: echo "::add-path::c:/msys64/mingw32/bin"
+        run: echo "c:/msys64/mingw32/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
         if: startsWith(matrix.rust_target, 'i686')
       - name: Add 64-bit mingw-w64 to the PATH
-        run: echo "::add-path::c:/msys64/mingw64/bin"
+        run: echo "c:/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
         if: startsWith(matrix.rust_target, 'x86_64')
+      - name: Set TARGET variable
+        run: echo "TARGET=${{ matrix.rust_target}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Install Rust nightly
         uses: actions-rs/toolchain@v1
         with:
