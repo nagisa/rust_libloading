@@ -220,10 +220,25 @@ impl Library {
     /// care about, consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
-        #[cfg(mtsafe_dlerror)]
-        { self.get_singlethreaded(symbol) }
-        #[cfg(not(mtsafe_dlerror))]
-        { self.get_impl(symbol, || Err(crate::Error::DlSymUnknown)) }
+        extern crate cfg_if;
+        cfg_if::cfg_if! {
+            // These targets are known to have MT-safe `dlerror`.
+            if #[cfg(any(
+                target_os = "linux",
+                target_os = "android",
+                target_os = "openbsd",
+                target_os = "macos",
+                target_os = "ios",
+                target_os = "solaris",
+                target_os = "illumos",
+                target_os = "redox",
+                target_os = "fuchsia"
+            ))] {
+                self.get_singlethreaded(symbol)
+            } else {
+                self.get_impl(symbol, || Err(crate::Error::DlSymUnknown))
+            }
+        }
     }
 
     /// Get a pointer to function or static variable by symbol name.
@@ -387,6 +402,8 @@ impl<T> fmt::Debug for Symbol<T> {
 }
 
 // Platform specific things
+#[cfg_attr(any(target_os = "linux", target_os = "android"), link(name="dl"))]
+#[cfg_attr(any(target_os = "freebsd", target_os = "dragonfly"), link(name="c"))]
 extern {
     fn dlopen(filename: *const raw::c_char, flags: raw::c_int) -> *mut raw::c_void;
     fn dlclose(handle: *mut raw::c_void) -> raw::c_int;
