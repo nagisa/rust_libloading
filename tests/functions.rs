@@ -14,14 +14,17 @@ fn make_helpers() {
         cmd
             .arg("src/test_helpers.rs")
             .arg("-o")
-            .arg(LIBPATH)
-            // .arg("--target")
-            // .arg(env!("LIBLOADING_TEST_TARGET"))
-            .arg("-O");
-
-        cmd
-            .output()
-            .expect("could not compile the test helpers!");
+            .arg(LIBPATH);
+        if let Some(target) = std::env::var_os("TARGET") {
+            cmd.arg("--target").arg(target);
+        } else {
+            eprintln!("WARNING: $TARGET NOT SPECIFIED! BUILDING HELPER MODULE FOR NATIVE TARGET.");
+        }
+        assert!(cmd
+            .status()
+            .expect("could not compile the test helpers!")
+            .success()
+        );
     });
 }
 
