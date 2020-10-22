@@ -22,7 +22,7 @@ features = [
 ]
 
 [target.'cfg(unix)'.dependencies.cfg-if]
-version = "0.1"
+version = "1"
 
 [dev-dependencies]
 libc = "0.2"
