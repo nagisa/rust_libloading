@@ -14,7 +14,7 @@ keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
 
 [target.'cfg(windows)'.dependencies.winapi]
-version = "0.3"
+version = ">=0.3.0, <0.4"
 features = [
     "winerror",
     "errhandlingapi",
@@ -22,11 +22,12 @@ features = [
 ]
 
 [target.'cfg(unix)'.dependencies.cfg-if]
-version = "1"
+version = ">=0.1.10, <2"
 
-[dev-dependencies]
-libc = "0.2"
-static_assertions = "1.1"
+# We make some more rigorous checks in CI
+[target.'cfg(ci)'.dependencies]
+libc = ">=0.2.7, <0.3"
+static_assertions = ">=1.0.0, <2"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -20,6 +20,7 @@ fn make_helpers() {
         } else {
             eprintln!("WARNING: $TARGET NOT SPECIFIED! BUILDING HELPER MODULE FOR NATIVE TARGET.");
         }
+        eprintln!("Building helper: {:?}", cmd);
         assert!(cmd
             .status()
             .expect("could not compile the test helpers!")

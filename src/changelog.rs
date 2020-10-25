@@ -2,6 +2,7 @@
 
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
 // TODO: for the next breaking release use `RTLD_LAZY | RTLD_LOCAL` by default  on unix.
+// TODO: for the next breaking release build the changelog module for cfg(docsrs) only
 
 /// Release 0.6.5 (2020-10-23)
 ///

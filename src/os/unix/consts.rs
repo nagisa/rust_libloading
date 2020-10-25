@@ -203,6 +203,18 @@ mod posix {
     }
 }
 
+#[cfg(ci)]
+mod verify_consts {
+    extern crate static_assertions;
+    extern crate libc;
+    use self::static_assertions::*;
+
+    const_assert_eq!(super::RTLD_LOCAL, libc::RTLD_LOCAL);
+    const_assert_eq!(super::RTLD_GLOBAL, libc::RTLD_GLOBAL);
+    const_assert_eq!(super::RTLD_NOW, libc::RTLD_NOW);
+    const_assert_eq!(super::RTLD_LAZY, libc::RTLD_LAZY);
+}
+
 // Other constants that exist but are not bound because they are platform-specific (non-posix)
 // extensions. Some of these constants are only relevant to `dlsym` or `dlmopen` calls.
 //
