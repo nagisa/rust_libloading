@@ -199,6 +199,8 @@ impl Library {
     /// You only need to call this if you are interested in handling any errors that may arise when
     /// library is unloaded. Otherwise the implementation of `Drop` for `Library` will close the
     /// library and ignore the errors were they arise.
+    ///
+    /// The underlying data structures may still get leaked if an error does occur.
     pub fn close(self) -> Result<(), Error> {
         self.0.close()
     }

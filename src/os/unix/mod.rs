@@ -301,6 +301,8 @@ impl Library {
     ///
     /// You only need to call this if you are interested in handling any errors that may arise when
     /// library is unloaded. Otherwise this will be done when `Library` is dropped.
+    ///
+    /// The underlying data structures may still get leaked if an error does occur.
     pub fn close(self) -> Result<(), crate::Error> {
         let result = with_dlerror(|desc| crate::Error::DlClose { desc }, || {
             if unsafe { dlclose(self.handle) } == 0 {
@@ -309,6 +311,9 @@ impl Library {
                 None
             }
         }).map_err(|e| e.unwrap_or(crate::Error::DlCloseUnknown));
+        // While the library is not free'd yet in case of an error, there is no reason to try
+        // dropping it again, because all that will do is try calling `FreeLibrary` again. only
+        // this time it would ignore the return result, which we already seen failing…
         std::mem::forget(self);
         result
     }

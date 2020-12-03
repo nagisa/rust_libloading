@@ -145,6 +145,30 @@ fn test_static_ptr() {
     }
 }
 
+#[test]
+// Something about i686-pc-windows-gnu, makes dll initialization code call abort when it is loaded
+// and unloaded many times. So far it seems like an issue with mingw, not libloading, so ignoring
+// the target. Especially since it is very unlikely to be fixed given the state of support its
+// support.
+#[cfg(not(all(target_arch="x86", target_os="windows", target_env="gnu")))]
+fn manual_close_many_times() {
+    make_helpers();
+    let join_handles: Vec<_> = (0..16).map(|_| {
+        std::thread::spawn(|| unsafe {
+            for _ in 0..10000 {
+                let lib = Library::new(LIBPATH).expect("open library");
+                let _: Symbol<unsafe extern fn(u32) -> u32> =
+                    lib.get(b"test_identity_u32").expect("get fn");
+                lib.close().expect("close is successful");
+            }
+        })
+    }).collect();
+    for handle in join_handles {
+        handle.join().expect("thread should succeed");
+    }
+}
+
+
 #[cfg(unix)]
 #[test]
 fn library_this_get() {
