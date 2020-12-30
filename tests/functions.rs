@@ -235,3 +235,23 @@ fn works_getlasterror0() {
         assert_eq!(errhandlingapi::GetLastError(), gle())
     }
 }
+
+#[cfg(windows)]
+#[test]
+fn library_open_already_loaded() {
+    use libloading::os::windows::Library;
+
+    // Present on Windows systems and NOT used by any other tests to prevent races.
+    const LIBPATH: &str = "Msftedit.dll";
+
+    // Not loaded yet.
+    assert!(match Library::open_already_loaded(LIBPATH) {
+        Err(libloading::Error::GetModuleHandleExW { .. }) => true,
+        _ => false,
+    });
+
+    let _lib = Library::new(LIBPATH).unwrap();
+
+    // Loaded now.
+    assert!(Library::open_already_loaded(LIBPATH).is_ok());
+}

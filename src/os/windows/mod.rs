@@ -119,6 +119,45 @@ impl Library {
         }
     }
 
+    /// Load a module that is already loaded by the program.
+    ///
+    /// This function returns a `Library` corresponding to a module with the given name that is
+    /// already mapped into the address space of the process. If the module isn't found an error is
+    /// returned.
+    ///
+    /// If the `filename` does not include a full path and there are multiple different loaded
+    /// modules corresponding to the `filename`, it is impossible to predict which module handle
+    /// will be returned. For more information refer to [MSDN].
+    ///
+    /// If the `filename` specifies a library filename without path and with extension omitted,
+    /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
+    /// trailing `.` to the `filename`.
+    ///
+    /// This is equivalent to `GetModuleHandleExW(0, filename, _)`.
+    ///
+    /// [MSDN]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
+    pub fn open_already_loaded<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
+        let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
+
+        let ret = unsafe {
+            let mut handle: HMODULE = std::ptr::null_mut();
+            with_get_last_error(|source| crate::Error::GetModuleHandleExW { source }, || {
+                // Make sure no winapi calls as a result of drop happen inside this closure, because
+                // otherwise that might change the return value of the GetLastError.
+                let result = libloaderapi::GetModuleHandleExW(0, wide_filename.as_ptr(), &mut handle);
+                if result == 0 {
+                    None
+                } else {
+                    Some(Library(handle))
+                }
+            }).map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
+        };
+
+        drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
+                             // inside the closure by mistake. See comment inside the closure.
+        ret
+    }
+
     /// Find and load a module, additionally adjusting behaviour with flags.
     ///
     /// See [`Library::new`] for documentation on handling of the `filename` argument. See the
