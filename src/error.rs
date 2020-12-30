@@ -55,7 +55,7 @@ pub enum Error {
         /// The source error.
         source: WindowsError
     },
-    /// The `LoadLibraryW` call failed and system did not report an error.
+    /// The `GetModuleHandleExW` call failed and system did not report an error.
     GetModuleHandleExWUnknown,
     /// The `GetProcAddress` call failed.
     GetProcAddress {
