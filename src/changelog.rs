@@ -11,6 +11,7 @@
 /// `libc::RTLD_NOLOAD`;
 ///
 /// [`os::windows::Library::open_already_loaded`]: crate::os::windows::Library::open_already_loaded
+/// [`os::unix::Library::open`]: crate::os::unix::Library::open
 pub mod r0_6_7 {}
 
 /// Release 0.6.6 (2020-12-03)
