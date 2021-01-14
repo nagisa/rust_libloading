@@ -3,6 +3,16 @@
 // TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
 // TODO: for the next breaking release use `RTLD_LAZY | RTLD_LOCAL` by default  on unix.
 
+/// Release 0.6.7 (2021-01-14)
+///
+/// * Added a [`os::windows::Library::open_already_loaded`] to obtain a handle to a library that
+/// must already be loaded. There is no portable equivalent for all UNIX targets. Users who do not
+/// care about portability across UNIX platforms may use [`os::unix::Library::open`] with
+/// `libc::RTLD_NOLOAD`;
+///
+/// [`os::windows::Library::open_already_loaded`]: crate::os::windows::Library::open_already_loaded
+pub mod r0_6_7 {}
+
 /// Release 0.6.6 (2020-12-03)
 ///
 /// * Fix a double-release of resources when [`Library::close`] or [`os::windows::Library::close`]
