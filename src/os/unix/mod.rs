@@ -106,8 +106,14 @@ impl Library {
     /// This is equivalent to [`Library::open`]`(filename, RTLD_LAZY | RTLD_LOCAL)`.
     ///
     /// [path separator]: std::path::MAIN_SEPARATOR
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded initializers contained within the library are executed. For the
+    /// purposes of soundness, execution of these initializers is conceptually the same calling a
+    /// FFI function and may impose whatever requirements on the caller.
     #[inline]
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
+    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_LAZY | RTLD_LOCAL)
     }
 
@@ -129,7 +135,10 @@ impl Library {
     /// [`os::windows::Library::this`]: crate::os::windows::Library::this
     #[inline]
     pub fn this() -> Library {
-        Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
+        unsafe {
+            // SAFE: this obtains a handle to an existing, loaded module, no danger in
+            Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
+        }
     }
 
     /// Find and load an executable object file (shared library).
@@ -138,22 +147,25 @@ impl Library {
     /// when the `filename` is `None`. Otherwise see [`Library::new`].
     ///
     /// Corresponds to `dlopen(filename, flags)`.
-    pub fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded initializers contained within the library are executed. For the
+    /// purposes of soundness, execution of these initializers is conceptually the same calling a
+    /// FFI function and may impose whatever requirements on the caller.
+    pub unsafe fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
     where P: AsRef<OsStr> {
         let filename = match filename {
             None => None,
             Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
         };
         with_dlerror(|desc| crate::Error::DlOpen { desc }, move || {
-            let result = unsafe {
-                let r = dlopen(match filename {
-                    None => ptr::null(),
-                    Some(ref f) => f.as_ptr()
-                }, flags);
-                // ensure filename lives until dlopen completes
-                drop(filename);
-                r
-            };
+            let result = dlopen(match filename {
+                None => ptr::null(),
+                Some(ref f) => f.as_ptr()
+            }, flags);
+            // ensure filename lives until dlopen completes
+            drop(filename);
             if result.is_null() {
                 None
             } else {

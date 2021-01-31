@@ -31,8 +31,8 @@ fn make_helpers() {
 #[test]
 fn test_id_u32() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         let f: Symbol<unsafe extern fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
         assert_eq!(42, f(42));
     }
@@ -50,8 +50,8 @@ struct S {
 #[test]
 fn test_id_struct() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         let f: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
         assert_eq!(S { a: 1, b: 2, c: 3, d: 4 }, f(S { a: 1, b: 2, c: 3, d: 4 }));
     }
@@ -60,8 +60,8 @@ fn test_id_struct() {
 #[test]
 fn test_0_no_0() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         let f: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
         let f2: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct").unwrap();
         assert_eq!(*f, *f2);
@@ -70,14 +70,16 @@ fn test_0_no_0() {
 
 #[test]
 fn wrong_name_fails() {
-    Library::new("target/this_location_is_definitely_non existent:^~").err().unwrap();
+    unsafe {
+        Library::new("target/this_location_is_definitely_non existent:^~").err().unwrap();
+    }
 }
 
 #[test]
 fn missing_symbol_fails() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         lib.get::<*mut ()>(b"test_does_not_exist").err().unwrap();
         lib.get::<*mut ()>(b"test_does_not_exist\0").err().unwrap();
     }
@@ -86,8 +88,8 @@ fn missing_symbol_fails() {
 #[test]
 fn interior_null_fails() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         lib.get::<*mut ()>(b"test_does\0_not_exist").err().unwrap();
         lib.get::<*mut ()>(b"test\0_does_not_exist\0").err().unwrap();
     }
@@ -96,8 +98,8 @@ fn interior_null_fails() {
 #[test]
 fn test_incompatible_type() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         assert!(match lib.get::<()>(b"test_identity_u32\0") {
            Err(libloading::Error::IncompatibleSize) => true,
            _ => false,
@@ -111,8 +113,8 @@ fn test_incompatible_type_named_fn() {
     unsafe fn get<'a, T>(l: &'a Library, _: T) -> Result<Symbol<'a, T>, libloading::Error> {
         l.get::<T>(b"test_identity_u32\0")
     }
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         assert!(match get(&lib, test_incompatible_type_named_fn) {
            Err(libloading::Error::IncompatibleSize) => true,
            _ => false,
@@ -123,8 +125,8 @@ fn test_incompatible_type_named_fn() {
 #[test]
 fn test_static_u32() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         let var: Symbol<*mut u32> = lib.get(b"TEST_STATIC_U32\0").unwrap();
         **var = 42;
         let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_static_u32\0").unwrap();
@@ -135,8 +137,8 @@ fn test_static_u32() {
 #[test]
 fn test_static_ptr() {
     make_helpers();
-    let lib = Library::new(LIBPATH).unwrap();
     unsafe {
+        let lib = Library::new(LIBPATH).unwrap();
         let var: Symbol<*mut *mut ()> = lib.get(b"TEST_STATIC_PTR\0").unwrap();
         **var = *var as *mut _;
         let works: Symbol<unsafe extern fn() -> bool> =
@@ -174,13 +176,12 @@ fn manual_close_many_times() {
 fn library_this_get() {
     use libloading::os::unix::Library;
     make_helpers();
-    let _lib = Library::new(LIBPATH).unwrap();
-    let this = Library::this();
     // SAFE: functions are never called
     unsafe {
+        let _lib = Library::new(LIBPATH).unwrap();
+        let this = Library::this();
         // Library we loaded in `_lib` (should be RTLD_LOCAL).
-        // FIXME: inconsistent behaviour between macos and other posix systems
-        // assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
+        assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
         // Something obscure from libc...
         assert!(this.get::<unsafe extern "C" fn()>(b"freopen").is_ok());
     }
@@ -191,10 +192,11 @@ fn library_this_get() {
 fn library_this() {
     use libloading::os::windows::Library;
     make_helpers();
-    let _lib = Library::new(LIBPATH).unwrap();
-    let this = Library::this().expect("this library");
-    // SAFE: functions are never called
     unsafe {
+        // SAFE: well-known library without initializers is loaded.
+        let _lib = Library::new(LIBPATH).unwrap();
+        let this = Library::this().expect("this library");
+        // SAFE: functions are never called.
         // Library we loaded in `_lib`.
         assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
         // Something "obscure" from kernel32...
@@ -209,11 +211,9 @@ fn works_getlasterror() {
     use winapi::shared::minwindef::DWORD;
     use libloading::os::windows::{Library, Symbol};
 
-    let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
-        lib.get(b"GetLastError").unwrap()
-    };
     unsafe {
+        let lib = Library::new("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> DWORD> = lib.get(b"GetLastError").unwrap();
         errhandlingapi::SetLastError(42);
         assert_eq!(errhandlingapi::GetLastError(), gle())
     }
@@ -226,11 +226,9 @@ fn works_getlasterror0() {
     use winapi::shared::minwindef::DWORD;
     use libloading::os::windows::{Library, Symbol};
 
-    let lib = Library::new("kernel32.dll").unwrap();
-    let gle: Symbol<unsafe extern "system" fn() -> DWORD> = unsafe {
-        lib.get(b"GetLastError\0").unwrap()
-    };
     unsafe {
+        let lib = Library::new("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> DWORD> = lib.get(b"GetLastError\0").unwrap();
         errhandlingapi::SetLastError(42);
         assert_eq!(errhandlingapi::GetLastError(), gle())
     }
@@ -250,8 +248,9 @@ fn library_open_already_loaded() {
         _ => false,
     });
 
-    let _lib = Library::new(LIBPATH).unwrap();
-
-    // Loaded now.
-    assert!(Library::open_already_loaded(LIBPATH).is_ok());
+    unsafe {
+        let _lib = Library::new(LIBPATH).unwrap();
+        // Loaded now.
+        assert!(Library::open_already_loaded(LIBPATH).is_ok());
+    }
 }

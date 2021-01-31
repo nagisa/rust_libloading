@@ -26,8 +26,8 @@
 //! extern crate libloading as lib;
 //!
 //! fn call_dynamic() -> Result<u32, Box<dyn std::error::Error>> {
-//!     let lib = lib::Library::new("/path/to/liblibrary.so")?;
 //!     unsafe {
+//!         let lib = lib::Library::new("/path/to/liblibrary.so")?;
 //!         let func: lib::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
 //!         Ok(func())
 //!     }
@@ -73,6 +73,12 @@ impl Library {
     /// * A library filename;
     /// * Absolute path to the library;
     /// * Relative (to the current working directory) path to the library.
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded initializers contained within the library are executed. For the
+    /// purposes of soundness, execution of these initializers is conceptually the same calling a
+    /// FFI function and may impose whatever requirements on the caller.
     ///
     /// # Thread-safety
     ///
@@ -123,11 +129,13 @@ impl Library {
     /// ```no_run
     /// # use ::libloading::Library;
     /// // Any of the following are valid.
-    /// let _ = Library::new("/path/to/awesome.module").unwrap();
-    /// let _ = Library::new("../awesome.module").unwrap();
-    /// let _ = Library::new("libsomelib.so.1").unwrap();
+    /// unsafe {
+    ///     let _ = Library::new("/path/to/awesome.module").unwrap();
+    ///     let _ = Library::new("../awesome.module").unwrap();
+    ///     let _ = Library::new("libsomelib.so.1").unwrap();
+    /// }
     /// ```
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
+    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
     }
 
@@ -162,14 +170,18 @@ impl Library {
     ///
     /// ```no_run
     /// # use ::libloading::Library;
-    /// let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// let lib = unsafe {
+    ///     Library::new("/path/to/awesome.module").unwrap()
+    /// };
     /// ```
     ///
     /// Loading and using a function looks like this:
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
-    /// # let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// # let lib = unsafe {
+    /// #     Library::new("/path/to/awesome.module").unwrap()
+    /// # };
     /// unsafe {
     ///     let awesome_function: Symbol<unsafe extern fn(f64) -> f64> =
     ///         lib.get(b"awesome_function\0").unwrap();
@@ -181,7 +193,7 @@ impl Library {
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
-    /// # let lib = Library::new("/path/to/awesome.module").unwrap();
+    /// # let lib = unsafe { Library::new("/path/to/awesome.module").unwrap() };
     /// unsafe {
     ///     let awesome_variable: Symbol<*mut f64> = lib.get(b"awesome_variable\0").unwrap();
     ///     **awesome_variable = 42.0;
@@ -257,8 +269,8 @@ impl<'lib, T> Symbol<'lib, T> {
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
-    /// let lib = Library::new("/path/to/awesome.module").unwrap();
     /// unsafe {
+    ///     let lib = Library::new("/path/to/awesome.module").unwrap();
     ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
     ///     let symbol = symbol.into_raw();
     /// }
@@ -281,8 +293,8 @@ impl<'lib, T> Symbol<'lib, T> {
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
-    /// let lib = Library::new("/path/to/awesome.module").unwrap();
     /// unsafe {
+    ///     let lib = Library::new("/path/to/awesome.module").unwrap();
     ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
     ///     let symbol = symbol.into_raw();
     ///     let symbol = Symbol::from_raw(symbol, &lib);
@@ -303,8 +315,8 @@ impl<'lib, T> Symbol<'lib, Option<T>> {
     ///
     /// ```no_run
     /// # use ::libloading::{Library, Symbol};
-    /// let lib = Library::new("/path/to/awesome.module").unwrap();
     /// unsafe {
+    ///     let lib = Library::new("/path/to/awesome.module").unwrap();
     ///     let symbol: Symbol<Option<*mut u32>> = lib.get(b"symbol\0").unwrap();
     ///     let symbol: Symbol<*mut u32> = symbol.lift_option().expect("static is not null");
     /// }
@@ -356,7 +368,9 @@ unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
 /// use libloading::{Library, library_filename};
 /// // Will attempt to load `libLLVM.so` on Linux, `libLLVM.dylib` on macOS and `LLVM.dll` on
 /// // Windows.
-/// let library = Library::new(library_filename("LLVM"));
+/// let library = unsafe {
+///     Library::new(library_filename("LLVM"))
+/// };
 /// ```
 pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     let name = name.as_ref();

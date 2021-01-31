@@ -91,12 +91,18 @@ impl Library {
     /// This is equivalent to [`Library::load_with_flags`]`(filename, 0)`.
     ///
     /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded initializers contained within the library are executed. For the
+    /// purposes of soundness, execution of these initializers is conceptually the same calling a
+    /// FFI function and may impose whatever requirements on the caller.
     #[inline]
-    pub fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
+    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
     }
 
-    /// Load the `Library` representing the original program executable.
+    /// Get the `Library` representing the original program executable.
     ///
     /// Note that behaviour of `Library` loaded with this method is different from
     /// Libraries loaded with [`os::unix::Library::this`]. For more information refer to [MSDN].
@@ -119,7 +125,7 @@ impl Library {
         }
     }
 
-    /// Load a module that is already loaded by the program.
+    /// Get a module that is already loaded by the program.
     ///
     /// This function returns a `Library` corresponding to a module with the given name that is
     /// already mapped into the address space of the process. If the module isn't found an error is
@@ -166,16 +172,21 @@ impl Library {
     /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
     ///
     /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
-    pub fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded initializers contained within the library are executed. For the
+    /// purposes of soundness, execution of these initializers is conceptually the same calling a
+    /// FFI function and may impose whatever requirements on the caller.
+    pub unsafe fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
         let ret = with_get_last_error(|source| crate::Error::LoadLibraryExW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
-            let handle = unsafe {
-                libloaderapi::LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), flags)
-            };
+            let handle =
+                libloaderapi::LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), flags);
             if handle.is_null()  {
                 None
             } else {
