@@ -1,7 +1,45 @@
 //! Project changelog
 
-// TODO: for the next breaking release rename `Error::LoadLibraryW` to `Error::LoadLibraryExW`.
-// TODO: for the next breaking release use `RTLD_LAZY | RTLD_LOCAL` by default  on unix.
+/// Release 0.7.0 (2021-01-31)
+///
+/// ## Breaking changes
+///
+/// Most importantly, a number of associated methods involved in loading a library have been marked
+/// `unsafe`. As described in the [issue #86], when loading a library the loader will execute code
+/// that's part of the dynamic library initialization routines. This is effectively equivalent to
+/// calling an arbitrary set of FFI functions and is, therefore, `unsafe`. The affected functions
+/// are: [`Library::new`], [`os::unix::Library::new`], [`os::unix::Library::open`],
+/// [`os::windows::Library::new`], [`os::windows::Library::load_with_flags`].
+///
+/// `Error::LoadLibraryW` renamed to [`Error::LoadLibraryExW`] to more accurately represent the
+/// underlying API that's failing.
+///
+/// On UNIX systems the [`Library::new`], [`os::unix::Library::new`] and
+/// [`os::unix::Library::this`] methods have been changed to use
+/// <code>[`RTLD_LAZY`] | [`RTLD_LOCAL`]</code> as the default set of loader options. This has a
+/// couple benefits. Namely:
+///
+/// * Lazy binding is generally quicker to execute when only a subset of symbols from a library are
+///   used and is typically the default when neither `RTLD_LAZY` nor `RTLD_NOW` are specified;
+/// * On most UNIX systems (macOS being a notable exception) [`RTLD_LOCAL`] is the default when
+///   neither `RTLD_LOCAL` nor [`RTLD_GLOBAL`] are specified. Setting the `RTLD_LOCAL` flag makes
+///   the behaviour more consistent across platforms.
+///
+/// [issue #86]: https://github.com/nagisa/rust_libloading/issues/86
+/// [`Library::new`]: crate::Library::new
+/// [windows_open]: crate::os::windows::Library::load_with_flags
+/// [unix_open]: crate::os::unix::Library::open
+/// [`Error::LoadLibraryExW`]: crate::Error::LoadLibraryExW
+/// [`os::unix::Library::this`]: crate::os::unix::Library::this
+/// [`os::unix::Library::new`]: crate::os::unix::Library::new
+/// [`os::unix::Library::open`]: crate::os::unix::Library::new
+/// [`os::windows::Library::new`]: crate::os::windows::Library::new
+/// [`os::windows::Library::load_with_flags`]: crate::os::windows::Library::load_with_flags
+/// [`RTLD_NOW`]: crate::os::unix::RTLD_NOW
+/// [`RTLD_LAZY`]: crate::os::unix::RTLD_LAZY
+/// [`RTLD_LOCAL`]: crate::os::unix::RTLD_LOCAL
+/// [`RTLD_GLOBAL`]: crate::os::unix::RTLD_GLOBAL
+pub mod r0_7_0 {}
 
 /// Release 0.6.7 (2021-01-14)
 ///
