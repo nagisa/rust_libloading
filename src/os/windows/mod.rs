@@ -170,7 +170,7 @@ impl Library {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
 
-        let ret = with_get_last_error(|source| crate::Error::LoadLibraryW { source }, || {
+        let ret = with_get_last_error(|source| crate::Error::LoadLibraryExW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
             let handle = unsafe {
@@ -181,7 +181,7 @@ impl Library {
             } else {
                 Some(Library(handle))
             }
-        }).map_err(|e| e.unwrap_or(crate::Error::LoadLibraryWUnknown));
+        }).map_err(|e| e.unwrap_or(crate::Error::LoadLibraryExWUnknown));
         drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
                              // inside the closure by mistake. See comment inside the closure.
         ret
@@ -249,8 +249,9 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// The handle shall be a result of a successful call of `LoadLibraryW` or a
-    /// handle previously returned by the `Library::into_raw` call.
+    /// The handle shall be a result of a successful call of `LoadLibraryA`, `LoadLibraryW`,
+    /// `LoadLibraryExW`, `LoadLibraryExA` or a handle previously returned by the
+    /// `Library::into_raw` call.
     pub unsafe fn from_raw(handle: HMODULE) -> Library {
         Library(handle)
     }
