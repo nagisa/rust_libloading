@@ -1,6 +1,6 @@
 //! The change log.
 
-/// Release 0.7.0 (2021-01-31)
+/// Release 0.7.0 (2021-02-06)
 ///
 /// ## Breaking changes
 ///
