@@ -103,21 +103,26 @@ impl Library {
     /// a file. Otherwise, platform-specific algorithms are employed to find a library with a
     /// matching file name.
     ///
-    /// This is equivalent to [`Library::open`]`(filename, RTLD_LAZY | RTLD_LOCAL)`.
+    /// This is equivalent to <code>[Library::open](filename, [RTLD_LAZY] | [RTLD_LOCAL])</code>.
     ///
     /// [path separator]: std::path::MAIN_SEPARATOR
     ///
     /// # Safety
     ///
-    /// When a library is loaded initializers contained within the library are executed. For the
-    /// purposes of soundness, execution of these initializers is conceptually the same calling a
-    /// FFI function and may impose whatever requirements on the caller.
+    /// When a library is loaded initialization routines contained within the library are executed.
+    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
     #[inline]
     pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_LAZY | RTLD_LOCAL)
     }
 
-    /// Eagerly load the `Library` representing the current executable.
+    /// Load the `Library` representing the current executable.
     ///
     /// [`Library::get`] calls of the returned `Library` will look for symbols in following
     /// locations in order:
@@ -130,13 +135,14 @@ impl Library {
     /// Note that behaviour of `Library` loaded with this method is different from
     /// Libraries loaded with [`os::windows::Library::this`].
     ///
-    /// This is equivalent to [`Library::open`]`(None, RTLD_LAZY | RTLD_LOCAL)`.
+    /// This is equivalent to <code>[Library::open](None, [RTLD_LAZY] | [RTLD_LOCAL])</code>.
     ///
     /// [`os::windows::Library::this`]: crate::os::windows::Library::this
     #[inline]
     pub fn this() -> Library {
         unsafe {
-            // SAFE: this obtains a handle to an existing, loaded module, no danger in
+            // SAFE: this does not load any new shared library images, no danger in it executing
+            // initializer routines.
             Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
         }
     }
@@ -150,9 +156,14 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initializers contained within the library are executed. For the
-    /// purposes of soundness, execution of these initializers is conceptually the same calling a
-    /// FFI function and may impose whatever requirements on the caller.
+    /// When a library is loaded initialization routines contained within the library are executed.
+    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
     pub unsafe fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
     where P: AsRef<OsStr> {
         let filename = match filename {
@@ -208,28 +219,27 @@ impl Library {
 
     /// Get a pointer to function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
-    /// terminated `symbol` may avoid an allocation in some cases.
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// null terminated `symbol` may help to avoid an allocation.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
     /// # Safety
     ///
-    /// This function does not validate the type `T`. It is up to the user of this function to
-    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
-    /// defined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded. Using a
+    /// `Symbol` with a wrong type is undefined.
     ///
     /// # Platform-specific behaviour
     ///
-    /// Implementation of thread local variables is extremely platform specific and uses of these
-    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems.
+    /// Implementation of thread local variables is extremely platform specific and uses of such
+    /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
     /// as FreeBSD), this function will unconditionally return an error when the underlying `dlsym`
     /// call returns a null pointer. There are rare situations where `dlsym` returns a genuine null
-    /// pointer without it being an error. If loading a symbol at null address is something you
-    /// care about, consider using the [`Library::get_singlethreaded`] call.
+    /// pointer without it being an error. If loading a null pointer is something you care about,
+    /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         extern crate cfg_if;
@@ -255,17 +265,16 @@ impl Library {
 
     /// Get a pointer to function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
-    /// terminated `symbol` may avoid a string allocation in some cases.
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// null terminated `symbol` may help to avoid an allocation.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
     /// # Safety
     ///
-    /// This function does not validate the type `T`. It is up to the user of this function to
-    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
-    /// defined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded. Using a
+    /// `Symbol` with a wrong type is undefined.
     ///
     /// It is up to the user of this library to ensure that no other calls to an MT-unsafe
     /// implementation of `dlerror` occur during execution of this function. Failing that, the
@@ -273,8 +282,8 @@ impl Library {
     ///
     /// # Platform-specific behaviour
     ///
-    /// Implementation of thread local variables is extremely platform specific and uses of these
-    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems.
+    /// Implementation of thread local variables is extremely platform specific and uses of such
+    /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     #[inline(always)]
     pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || Ok(Symbol {
@@ -312,7 +321,8 @@ impl Library {
     /// what library was opened or other platform specifics.
     ///
     /// You only need to call this if you are interested in handling any errors that may arise when
-    /// library is unloaded. Otherwise this will be done when `Library` is dropped.
+    /// library is unloaded. Otherwise the implementation of `Drop` for `Library` will close the
+    /// library and ignore the errors were they arise.
     ///
     /// The underlying data structures may still get leaked if an error does occur.
     pub fn close(self) -> Result<(), crate::Error> {
@@ -324,7 +334,7 @@ impl Library {
             }
         }).map_err(|e| e.unwrap_or(crate::Error::DlCloseUnknown));
         // While the library is not free'd yet in case of an error, there is no reason to try
-        // dropping it again, because all that will do is try calling `FreeLibrary` again. only
+        // dropping it again, because all that will do is try calling `dlclose` again. only
         // this time it would ignore the return result, which we already seen failing…
         std::mem::forget(self);
         result

@@ -1,15 +1,14 @@
 //! A memory-safer wrapper around system dynamic library loading primitives.
 //!
 //! Using this library allows loading [dynamic libraries](struct.Library.html) (also known as
-//! shared libraries) as well as use functions and static variables these libraries contain.
+//! shared libraries) and use functions & global variables contained within the libraries.
 //!
-//! While the library does expose a cross-platform interface to load a library and find stuff
-//! inside it, little is done to paper over the platform differences, especially where library
-//! loading is involved. The documentation for each function will attempt to document such
-//! differences on the best-effort basis.
+//! `libloading` crate exposes a cross-platform interface to load a library and utilize its
+//! contents, but little is done to paper over the differences in behaviour between different
+//! platforms. The API documentation strives to document such differences on the best-effort basis.
 //!
-//! Less safe, platform specific bindings are also available. See the
-//! [`os::platform`](os/index.html) module for details.
+//! Platform specific APIs are also available in the [`os`](crate::os) module. These APIs are more
+//! flexible but less safe.
 //!
 //! # Usage
 //!
@@ -17,25 +16,23 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libloading = "0.6"
+//! libloading = "0.7"
 //! ```
 //!
-//! Then inside your project
+//! Then inside your code:
 //!
 //! ```no_run
-//! extern crate libloading as lib;
-//!
 //! fn call_dynamic() -> Result<u32, Box<dyn std::error::Error>> {
 //!     unsafe {
-//!         let lib = lib::Library::new("/path/to/liblibrary.so")?;
-//!         let func: lib::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
+//!         let lib = libloading::Library::new("/path/to/liblibrary.so")?;
+//!         let func: libloading::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
 //!         Ok(func())
 //!     }
 //! }
 //! ```
 //!
 //! The compiler will ensure that the loaded `function` will not outlive the `Library` it comes
-//! from, preventing a common cause of undefined behaviour and memory safety problems.
+//! from, preventing a common class of issues.
 #![deny(
     missing_docs,
     clippy::all,
@@ -76,24 +73,24 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initializers contained within the library are executed. For the
-    /// purposes of soundness, execution of these initializers is conceptually the same calling a
-    /// FFI function and may impose whatever requirements on the caller.
+    /// When a library is loaded initialization routines contained within the library are executed.
+    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
     ///
     /// # Thread-safety
     ///
-    /// The implementation strives to be as MT-safe as sanely possible, however due to certain
-    /// error-handling related resources not always being safe, this library is not MT-safe either.
+    /// The implementation strives to be as MT-safe as sanely possible, however on certain
+    /// platforms the underlying error-handling related APIs not always MT-safe. This library
+    /// shares these limitations on those platforms. In particular, on certain UNIX targets
+    /// `dlerror` is not MT-safe, resulting in garbage error messages in certain MT-scenarios.
     ///
-    /// * On Windows Vista and earlier error handling falls back to [`SetErrorMode`], which is not
-    ///   MT-safe. MT-scenarios involving this function may cause a traditional data race;
-    /// * On some UNIX targets `dlerror` might not be MT-safe, resulting in garbage error messages
-    ///   in certain MT-scenarios.
-    ///
-    /// [`SetErrorMode`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms680621(v=vs.85).aspx
-    ///
-    /// Calling this function from multiple threads is not safe if used in conjunction with
-    /// relative filenames and the library search path is modified (`SetDllDirectory` function on
+    /// Calling this function from multiple threads is not MT-safe if used in conjunction with
+    /// library filenames and the library search path is modified (`SetDllDirectory` function on
     /// Windows, `{DY,}LD_LIBRARY_PATH` environment variable on UNIX).
     ///
     /// # Platform-specific behaviour
@@ -103,15 +100,8 @@ impl Library {
     /// the platform specific [`os::unix::Library::new`] and [`os::windows::Library::new`] methods
     /// for further information on library lookup behaviour.
     ///
-    /// ## Windows
-    ///
     /// If the `filename` specifies a library filename without path and with extension omitted,
-    /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
-    /// trailing `.` to the `filename`.
-    ///
-    /// If the library contains thread local variables (MSVC’s `_declspec(thread)`, Rust’s
-    /// `#[thread_local]` attributes), loading the library will fail on versions prior to Windows
-    /// Vista.
+    /// `.dll` extension is implicitly added on Windows.
     ///
     /// # Tips
     ///
@@ -141,26 +131,25 @@ impl Library {
 
     /// Get a pointer to function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. A null
-    /// terminated `symbol` may avoid a string allocation in some cases.
+    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// null terminated `symbol` may help to avoid an allocation.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
     /// # Safety
     ///
-    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
-    /// undefined.
+    /// Users of this API must specify the correct type of the function or variable loaded. Using a
+    /// `Symbol` with a wrong type is undefined.
     ///
     /// # Platform-specific behaviour
     ///
-    /// Implementation of thread local variables is extremely platform specific and uses of these
-    /// variables that work on e.g. Linux may have unintended behaviour on other POSIX systems or
-    /// Windows.
+    /// Implementation of thread local variables is extremely platform specific and uses of such
+    /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
-    /// as FreeBSD), this function will unconditionally return an error the underlying `dlsym` call
-    /// returns a null pointer. There are rare situations where `dlsym` returns a genuine null
+    /// as FreeBSD), this function will unconditionally return an error when the underlying `dlsym`
+    /// call returns a null pointer. There are rare situations where `dlsym` returns a genuine null
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`os::unix::Library::get_singlethreaded`] call.
     ///
@@ -242,15 +231,12 @@ unsafe impl Sync for Library {}
 /// Symbol from a library.
 ///
 /// This type is a safeguard against using dynamically loaded symbols after a `Library` is
-/// unloaded. Primary method to create an instance of a `Symbol` is via `Library::get`.
+/// unloaded. Primary method to create an instance of a `Symbol` is via [`Library::get`].
 ///
-/// Due to implementation of the `Deref` trait, an instance of `Symbol` may be used as if it was a
-/// function or variable directly, without taking care to “extract” function or variable manually
-/// most of the time.
+/// The `Deref` trait implementation allows use of `Symbol` as if it was a function or variable
+/// itself, without taking care to “extract” function or variable manually most of the time.
 ///
-/// See [`Library::get`] for details.
-///
-/// [`Library::get`]: ./struct.Library.html#method.get
+/// [`Library::get`]: Library::get
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
     pd: marker::PhantomData<&'lib T>
@@ -282,12 +268,11 @@ impl<'lib, T> Symbol<'lib, T> {
     /// Wrap the `os::platform::Symbol` into this safe wrapper.
     ///
     /// Note that, in order to create association between the symbol and the library this symbol
-    /// came from, this function requires reference to the library provided.
+    /// came from, this function requires a reference to the library.
     ///
     /// # Safety
     ///
-    /// It is invalid to provide a reference to any other value other than the library the `sym`
-    /// was loaded from. Doing so invalidates any lifetime guarantees.
+    /// The `library` reference must be exactly the library `sym` was loaded from.
     ///
     /// # Examples
     ///
@@ -300,7 +285,8 @@ impl<'lib, T> Symbol<'lib, T> {
     ///     let symbol = Symbol::from_raw(symbol, &lib);
     /// }
     /// ```
-    pub unsafe fn from_raw<L>(sym: imp::Symbol<T>, _: &'lib L) -> Symbol<'lib, T> {
+    pub unsafe fn from_raw<L>(sym: imp::Symbol<T>, library: &'lib L) -> Symbol<'lib, T> {
+        let _ = library; // ignore here for documentation purposes.
         Symbol {
             inner: sym,
             pd: marker::PhantomData

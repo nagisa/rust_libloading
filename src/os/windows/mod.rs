@@ -86,15 +86,20 @@ impl Library {
     /// `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
     /// trailing `.` to the `filename`.
     ///
-    /// This is equivalent to [`Library::load_with_flags`]`(filename, 0)`.
+    /// This is equivalent to <code>[Library::load_with_flags](filename, 0)</code>.
     ///
     /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks
     ///
     /// # Safety
     ///
-    /// When a library is loaded initializers contained within the library are executed. For the
-    /// purposes of soundness, execution of these initializers is conceptually the same calling a
-    /// FFI function and may impose whatever requirements on the caller.
+    /// When a library is loaded initialization routines contained within the library are executed.
+    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
     #[inline]
     pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
@@ -173,9 +178,14 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initializers contained within the library are executed. For the
-    /// purposes of soundness, execution of these initializers is conceptually the same calling a
-    /// FFI function and may impose whatever requirements on the caller.
+    /// When a library is loaded initialization routines contained within the library are executed.
+    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
     pub unsafe fn load_with_flags<P: AsRef<OsStr>>(filename: P, flags: DWORD) -> Result<Library, crate::Error> {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let _guard = ErrorModeGuard::new();
@@ -206,9 +216,8 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// This function does not validate the type `T`. It is up to the user of this function to
-    /// ensure that the loaded symbol is in fact a `T`. Using a value with a wrong type has no
-    /// definied behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded. Using a
+    /// `Symbol` with a wrong type is undefined.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
@@ -229,8 +238,8 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// Pointer to a value of arbitrary type is returned. Using a value with wrong type is
-    /// undefined.
+    /// Users of this API must specify the correct type of the function or variable loaded. Using a
+    /// `Symbol` with a wrong type is undefined.
     pub unsafe fn get_ordinal<T>(&self, ordinal: WORD) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
         with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {

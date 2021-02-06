@@ -1,4 +1,4 @@
-//! Unsafe, platform specific bindings to dynamic library loading facilities.
+//! Unsafe but flexible platform specific bindings to dynamic library loading facilities.
 //!
 //! These modules expose more extensive, powerful, less principled bindings to the dynamic
 //! library loading facilities. Use of these bindings come at the cost of less (in most cases,
