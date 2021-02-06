@@ -25,6 +25,13 @@
 ///   neither `RTLD_LOCAL` nor [`RTLD_GLOBAL`] are specified. Setting the `RTLD_LOCAL` flag makes
 ///   the behaviour more consistent across platforms.
 ///
+/// ### Dropped support for Windows XP/Vista
+///
+/// The (broken) support for Windows XP and Windows Vista environments was removed. This was
+/// prompted primarily by a similar policy change in the [Rust
+/// project](https://github.com/rust-lang/compiler-team/issues/378) but also as an acknowledgement
+/// to the fact that `libloading` never worked in these environments anyway.
+///
 /// [issue #86]: https://github.com/nagisa/rust_libloading/issues/86
 /// [`Library::new`]: crate::Library::new
 /// [windows_open]: crate::os::windows::Library::load_with_flags
