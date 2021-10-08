@@ -9,7 +9,7 @@ license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
 documentation = "https://docs.rs/libloading/"
 readme = "README.mkd"
-description = "A safer binding to platform’s dynamic library loading utilities"
+description = "Bindings around the platform's dynamic library loading primitives with greatly improved memory safety."
 keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
 

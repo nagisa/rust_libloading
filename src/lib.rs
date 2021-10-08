@@ -1,25 +1,27 @@
-//! A memory-safer wrapper around system dynamic library loading primitives.
+//! Bindings around the platform's dynamic library loading primitives with greatly improved memory safety.
 //!
-//! Using this library allows loading [dynamic libraries](struct.Library.html) (also known as
-//! shared libraries) and use functions & global variables contained within the libraries.
+//! Using this library allows the loading of [dynamic libraries](struct.Library.html), also known as
+//! shared libraries, and the use of the functions and static variables they contain.
 //!
-//! `libloading` crate exposes a cross-platform interface to load a library and utilize its
-//! contents, but little is done to paper over the differences in behaviour between different
-//! platforms. The API documentation strives to document such differences on the best-effort basis.
+//! The `libloading` crate exposes a cross-platform interface to load a library and make use of its
+//! contents, but little is done to hide the differences in behaviour between platforms.
+//! The API documentation strives to document such differences as much as possible.
 //!
-//! Platform specific APIs are also available in the [`os`](crate::os) module. These APIs are more
-//! flexible but less safe.
+//! Platform-specific APIs are also available in the [`os`](crate::os) module. These APIs are more
+//! flexible, but less safe.
 //!
-//! # Usage
+//! # Installation
 //!
-//! Add a dependency on this library to your `Cargo.toml`:
+//! Add the `libloading` library to your dependencies in `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies]
 //! libloading = "0.7"
 //! ```
 //!
-//! Then inside your code:
+//! # Usage
+//!
+//! In your code, run the following:
 //!
 //! ```no_run
 //! fn call_dynamic() -> Result<u32, Box<dyn std::error::Error>> {
@@ -31,33 +33,28 @@
 //! }
 //! ```
 //!
-//! The compiler will ensure that the loaded `function` will not outlive the `Library` it comes
-//! from, preventing a common class of issues.
-#![deny(
-    missing_docs,
-    clippy::all,
-    unreachable_pub,
-    unused,
-)]
+//! The compiler will ensure that the loaded function`will not outlive the `Library` from which it comes,
+//! preventing the most common memory-safety issues.
+#![deny(missing_docs, clippy::all, unreachable_pub, unused)]
 #![cfg_attr(docsrs, deny(broken_intra_doc_links))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::ffi::{OsStr, OsString};
 use std::fmt;
-use std::ops;
 use std::marker;
+use std::ops;
 
+pub use self::error::Error;
 #[cfg(unix)]
 use self::os::unix as imp;
 #[cfg(windows)]
 use self::os::windows as imp;
-pub use self::error::Error;
 
-pub mod os;
 pub mod changelog;
-mod util;
 mod error;
+pub mod os;
+mod util;
 
 /// A loaded dynamic library.
 pub struct Library(imp::Library);
@@ -65,16 +62,16 @@ pub struct Library(imp::Library);
 impl Library {
     /// Find and load a dynamic library.
     ///
-    /// The `filename` argument may be any of:
+    /// The `filename` argument may be either:
     ///
     /// * A library filename;
-    /// * Absolute path to the library;
-    /// * Relative (to the current working directory) path to the library.
+    /// * The absolute path to the library;
+    /// * A relative (to the current working directory) path to the library.
     ///
     /// # Safety
     ///
-    /// When a library is loaded initialization routines contained within the library are executed.
-    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// When a library is loaded, initialisation routines contained within it are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
     /// unknown foreign function and may impose arbitrary requirements on the caller for the call
     /// to be sound.
     ///
@@ -95,18 +92,18 @@ impl Library {
     ///
     /// # Platform-specific behaviour
     ///
-    /// When a plain library filename is supplied, locations where library is searched for is
-    /// platform specific and cannot be adjusted in a portable manner. See documentation for
+    /// When a plain library filename is supplied, the locations in which the library is searched are
+    /// platform specific and cannot be adjusted in a portable manner. See the documentation for
     /// the platform specific [`os::unix::Library::new`] and [`os::windows::Library::new`] methods
     /// for further information on library lookup behaviour.
     ///
-    /// If the `filename` specifies a library filename without path and with extension omitted,
-    /// `.dll` extension is implicitly added on Windows.
+    /// If the `filename` specifies a library filename without a path and with the extension omitted,
+    /// the `.dll` extension is implicitly added on Windows.
     ///
     /// # Tips
     ///
     /// Distributing your dynamic libraries under a filename common to all platforms (e.g.
-    /// `awesome.module`) allows to avoid code which has to account for platform’s conventional
+    /// `awesome.module`) allows you to avoid code which has to account for platform’s conventional
     /// library filenames.
     ///
     /// Strive to specify an absolute or at least a relative path to your library, unless
@@ -129,22 +126,22 @@ impl Library {
         imp::Library::new(filename).map(From::from)
     }
 
-    /// Get a pointer to function or static variable by symbol name.
+    /// Get a pointer to a function or static variable by symbol name.
     ///
     /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
-    /// null terminated `symbol` may help to avoid an allocation.
+    /// null-terminated `symbol` may help to avoid an allocation.
     ///
-    /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
+    /// The symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
     /// # Safety
     ///
     /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type is undefined.
+    /// `Symbol` with a wrong type causes undefined behaviour.
     ///
     /// # Platform-specific behaviour
     ///
-    /// Implementation of thread local variables is extremely platform specific and uses of such
+    /// The implementation of thread-local variables is extremely platform specific and uses of such
     /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     ///
     /// On POSIX implementations where the `dlerror` function is not confirmed to be MT-safe (such
@@ -231,15 +228,15 @@ unsafe impl Sync for Library {}
 /// Symbol from a library.
 ///
 /// This type is a safeguard against using dynamically loaded symbols after a `Library` is
-/// unloaded. Primary method to create an instance of a `Symbol` is via [`Library::get`].
+/// unloaded. The primary method to create an instance of a `Symbol` is via [`Library::get`].
 ///
-/// The `Deref` trait implementation allows use of `Symbol` as if it was a function or variable
-/// itself, without taking care to “extract” function or variable manually most of the time.
+/// The `Deref` trait implementation allows the use of `Symbol` as if it was a function or variable
+/// itself, without taking care to “extract” the function or variable manually most of the time.
 ///
 /// [`Library::get`]: Library::get
 pub struct Symbol<'lib, T: 'lib> {
     inner: imp::Symbol<T>,
-    pd: marker::PhantomData<&'lib T>
+    pd: marker::PhantomData<&'lib T>,
 }
 
 impl<'lib, T> Symbol<'lib, T> {
@@ -247,7 +244,7 @@ impl<'lib, T> Symbol<'lib, T> {
     ///
     /// # Safety
     ///
-    /// Using this function relinquishes all the lifetime guarantees. It is up to programmer to
+    /// Using this function relinquishes all the lifetime guarantees. It is up to the developer to
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
     ///
@@ -289,7 +286,7 @@ impl<'lib, T> Symbol<'lib, T> {
         let _ = library; // ignore here for documentation purposes.
         Symbol {
             inner: sym,
-            pd: marker::PhantomData
+            pd: marker::PhantomData,
         }
     }
 }
@@ -319,7 +316,7 @@ impl<'lib, T> Clone for Symbol<'lib, T> {
     fn clone(&self) -> Symbol<'lib, T> {
         Symbol {
             inner: self.inner.clone(),
-            pd: marker::PhantomData
+            pd: marker::PhantomData,
         }
     }
 }
@@ -343,7 +340,7 @@ unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
 
 /// Converts a library name to a filename generally appropriate for use on the system.
 ///
-/// The function will prepend prefixes (such as `lib`) and suffixes (such as `.so`) to the library
+/// This function will prepend prefixes (such as `lib`) and suffixes (such as `.so`) to the library
 /// `name` to construct the filename.
 ///
 /// # Examples
