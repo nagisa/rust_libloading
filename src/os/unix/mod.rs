@@ -142,7 +142,7 @@ impl Library {
     pub fn this() -> Library {
         unsafe {
             // SAFE: this does not load any new shared library images, no danger in it executing
-            // initializer routines.
+            // initialiser routines.
             Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
         }
     }

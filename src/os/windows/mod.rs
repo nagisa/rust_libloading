@@ -452,7 +452,7 @@ pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: DWORD = consts::LOAD_LIBRARY_AS_DA
 
 /// Map the file into the process’ virtual address space as an image file.
 ///
-/// The loader does not load the static imports or perform the other usual initialization steps.
+/// The loader does not load the static imports or perform the other usual initialisation steps.
 /// Use this flag when you want to load a DLL only to extract messages or resources from it.
 ///
 /// Unless the application depends on the file having the in-memory layout of an image, this value
@@ -513,7 +513,7 @@ pub const LOAD_LIBRARY_SEARCH_USER_DIRS: DWORD = consts::LOAD_LIBRARY_SEARCH_USE
 /// discussed in the [Remarks section] to find associated executable modules that the specified
 /// module causes to be loaded.
 ///
-/// If this value is used and `filename` specifies a relative path, the behavior is undefined.
+/// If this value is used and `filename` specifies a relative path, the behaviour is undefined.
 ///
 /// If this value is not used, or if `filename` does not specify a path, the system uses the
 /// standard search strategy discussed in the [Remarks section] to find associated executable
