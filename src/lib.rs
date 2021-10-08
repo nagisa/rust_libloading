@@ -128,7 +128,7 @@ impl Library {
 
     /// Get a pointer to a function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
     /// null-terminated `symbol` may help to avoid an allocation.
     ///
     /// The symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are

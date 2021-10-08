@@ -109,8 +109,8 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initialization routines contained within the library are executed.
-    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// When a library is loaded initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
     /// unknown foreign function and may impose arbitrary requirements on the caller for the call
     /// to be sound.
     ///
@@ -127,12 +127,12 @@ impl Library {
     /// [`Library::get`] calls of the returned `Library` will look for symbols in following
     /// locations in order:
     ///
-    /// 1. Original program image;
+    /// 1. The original program image;
     /// 2. Any executable object files (e.g. shared libraries) loaded at program startup;
-    /// 3. Executable object files loaded at runtime (e.g. via other `Library::new` calls or via
-    ///    calls to the `dlopen` function)
+    /// 3. Any executable object files loaded at runtime (e.g. via other `Library::new` calls or via
+    ///    calls to the `dlopen` function).
     ///
-    /// Note that behaviour of `Library` loaded with this method is different from
+    /// Note that the behaviour of a `Library` loaded with this method is different from that of
     /// Libraries loaded with [`os::windows::Library::this`].
     ///
     /// This is equivalent to <code>[Library::open](None, [RTLD_LAZY] | [RTLD_LOCAL])</code>.
@@ -149,15 +149,15 @@ impl Library {
 
     /// Find and load an executable object file (shared library).
     ///
-    /// See documentation for [`Library::this`] for further description of behaviour
+    /// See documentation for [`Library::this`] for further description of the behaviour
     /// when the `filename` is `None`. Otherwise see [`Library::new`].
     ///
     /// Corresponds to `dlopen(filename, flags)`.
     ///
     /// # Safety
     ///
-    /// When a library is loaded initialization routines contained within the library are executed.
-    /// For the purposes of safety, execution of these routines is conceptually the same calling an
+    /// When a library is loaded initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
     /// unknown foreign function and may impose arbitrary requirements on the caller for the call
     /// to be sound.
     ///
@@ -217,9 +217,9 @@ impl Library {
 
     }
 
-    /// Get a pointer to function or static variable by symbol name.
+    /// Get a pointer to a function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
     /// null terminated `symbol` may help to avoid an allocation.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
@@ -265,7 +265,7 @@ impl Library {
 
     /// Get a pointer to function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with an exception of last byte. Providing a
+    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
     /// null terminated `symbol` may help to avoid an allocation.
     ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
@@ -274,15 +274,15 @@ impl Library {
     /// # Safety
     ///
     /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type is undefined.
+    /// `Symbol` with a wrong type causes undefined behaviour.
     ///
     /// It is up to the user of this library to ensure that no other calls to an MT-unsafe
-    /// implementation of `dlerror` occur during execution of this function. Failing that, the
+    /// implementation of `dlerror` occur during the execution of this function. Failing that, the
     /// behaviour of this function is not defined.
     ///
     /// # Platform-specific behaviour
     ///
-    /// Implementation of thread local variables is extremely platform specific and uses of such
+    /// The implementation of thread-local variables is extremely platform specific and uses of such
     /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     #[inline(always)]
     pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
@@ -357,15 +357,15 @@ impl fmt::Debug for Library {
 
 /// Symbol from a library.
 ///
-/// A major difference compared to the cross-platform `Symbol` is that this does not ensure the
-/// `Symbol` does not outlive `Library` it comes from.
+/// A major difference compared to the cross-platform `Symbol` is that this does not ensure that the
+/// `Symbol` does not outlive the `Library` it comes from.
 pub struct Symbol<T> {
     pointer: *mut raw::c_void,
     pd: marker::PhantomData<T>
 }
 
 impl<T> Symbol<T> {
-    /// Convert the loaded Symbol into a raw pointer.
+    /// Convert the loaded `Symbol` into a raw pointer.
     pub fn into_raw(self) -> *mut raw::c_void {
         let pointer = self.pointer;
         mem::forget(self);
