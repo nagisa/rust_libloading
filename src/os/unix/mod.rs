@@ -273,8 +273,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type causes undefined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded.
     ///
     /// It is up to the user of this library to ensure that no other calls to an MT-unsafe
     /// implementation of `dlerror` occur during the execution of this function. Failing that, the

@@ -136,8 +136,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type causes undefined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded.
     ///
     /// # Platform-specific behaviour
     ///

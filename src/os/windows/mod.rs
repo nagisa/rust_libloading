@@ -216,8 +216,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type causes undefined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded.
     pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
@@ -238,8 +237,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// Users of this API must specify the correct type of the function or variable loaded. Using a
-    /// `Symbol` with a wrong type causes undefined behaviour.
+    /// Users of this API must specify the correct type of the function or variable loaded.
     pub unsafe fn get_ordinal<T>(&self, ordinal: WORD) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
         with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
