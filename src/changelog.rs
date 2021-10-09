@@ -1,5 +1,10 @@
 //! The change log.
 
+/// Release 0.7.1 (2021-10-09)
+///
+/// Significantly improved the consistency and style of the documentation.
+pub mod r0_7_1 {}
+
 /// Release 0.7.0 (2021-02-06)
 ///
 /// ## Breaking changes

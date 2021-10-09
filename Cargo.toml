@@ -2,8 +2,8 @@
 name = "libloading"
 # When bumping
 # * Don’t forget to add an entry to `src/changelog.rs`
-# * If bumping a incompatible version, adjust documentation in `src/lib.rs`
-version = "0.7.0"
+# * If bumping to an incompatible version, adjust the documentation in `src/lib.rs`
+version = "0.7.1"
 authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
