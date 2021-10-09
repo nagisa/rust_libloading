@@ -109,7 +109,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initialisation routines contained within the library are executed.
+    /// When a library is loaded, initialisation routines contained within the library are executed.
     /// For the purposes of safety, the execution of these routines is conceptually the same calling an
     /// unknown foreign function and may impose arbitrary requirements on the caller for the call
     /// to be sound.
@@ -156,7 +156,7 @@ impl Library {
     ///
     /// # Safety
     ///
-    /// When a library is loaded initialisation routines contained within the library are executed.
+    /// When a library is loaded, initialisation routines contained within the library are executed.
     /// For the purposes of safety, the execution of these routines is conceptually the same calling an
     /// unknown foreign function and may impose arbitrary requirements on the caller for the call
     /// to be sound.
