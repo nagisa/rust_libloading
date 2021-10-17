@@ -33,7 +33,7 @@
 //! }
 //! ```
 //!
-//! The compiler will ensure that the loaded function`will not outlive the `Library` from which it comes,
+//! The compiler will ensure that the loaded function will not outlive the `Library` from which it comes,
 //! preventing the most common memory-safety issues.
 #![deny(missing_docs, clippy::all, unreachable_pub, unused)]
 #![cfg_attr(docsrs, deny(broken_intra_doc_links))]
