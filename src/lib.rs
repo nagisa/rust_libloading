@@ -50,6 +50,7 @@ pub use self::error::Error;
 use self::os::unix as imp;
 #[cfg(windows)]
 use self::os::windows as imp;
+pub use self::imp::Symbol as RawSymbol;
 
 pub mod changelog;
 mod error;
@@ -234,34 +235,34 @@ unsafe impl Sync for Library {}
 ///
 /// [`Library::get`]: Library::get
 pub struct Symbol<'lib, T: 'lib> {
-    inner: imp::Symbol<T>,
+    inner: RawSymbol<T>,
     pd: marker::PhantomData<&'lib T>,
 }
 
 impl<'lib, T> Symbol<'lib, T> {
-    /// Extract the wrapped `os::platform::Symbol`.
+    /// Extract the wrapped `os::platform::Symbol` (re-exported as `RawSymbol`).
     ///
     /// # Safety
     ///
     /// Using this function relinquishes all the lifetime guarantees. It is up to the developer to
-    /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
+    /// ensure the resulting `RawSymbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// # use ::libloading::{Library, Symbol};
+    /// # use ::libloading::{Library, RawSymbol, Symbol};
     /// unsafe {
     ///     let lib = Library::new("/path/to/awesome.module").unwrap();
     ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
-    ///     let symbol = symbol.into_raw();
+    ///     let symbol: RawSymbol<*mut u32> = symbol.into_raw();
     /// }
     /// ```
-    pub unsafe fn into_raw(self) -> imp::Symbol<T> {
+    pub unsafe fn into_raw(self) -> RawSymbol<T> {
         self.inner
     }
 
-    /// Wrap the `os::platform::Symbol` into this safe wrapper.
+    /// Wrap the `os::platform::Symbol` (re-exported as `RawSymbol`) into this safe wrapper.
     ///
     /// Note that, in order to create association between the symbol and the library this symbol
     /// came from, this function requires a reference to the library.
@@ -273,15 +274,15 @@ impl<'lib, T> Symbol<'lib, T> {
     /// # Examples
     ///
     /// ```no_run
-    /// # use ::libloading::{Library, Symbol};
+    /// # use ::libloading::{Library, RawSymbol, Symbol};
     /// unsafe {
     ///     let lib = Library::new("/path/to/awesome.module").unwrap();
     ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
-    ///     let symbol = symbol.into_raw();
+    ///     let symbol: RawSymbol<*mut u32> = symbol.into_raw();
     ///     let symbol = Symbol::from_raw(symbol, &lib);
     /// }
     /// ```
-    pub unsafe fn from_raw<L>(sym: imp::Symbol<T>, library: &'lib L) -> Symbol<'lib, T> {
+    pub unsafe fn from_raw<L>(sym: RawSymbol<T>, library: &'lib L) -> Symbol<'lib, T> {
         let _ = library; // ignore here for documentation purposes.
         Symbol {
             inner: sym,
