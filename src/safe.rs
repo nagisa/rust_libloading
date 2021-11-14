@@ -3,7 +3,6 @@ use super::Error;
 use super::os::unix as imp;
 #[cfg(windows)]
 use super::os::windows as imp;
-use super::Error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::marker;
@@ -54,6 +53,9 @@ impl Library {
     /// If the `filename` specifies a library filename without a path and with the extension omitted,
     /// the `.dll` extension is implicitly added on Windows.
     ///
+    /// [`os::unix::Library::new`]: crate::os::unix::Library::new
+    /// [`os::windows::Library::new`]: crate::os::windows::Library::new
+    ///
     /// # Tips
     ///
     /// Distributing your dynamic libraries under a filename common to all platforms (e.g.
@@ -102,6 +104,8 @@ impl Library {
     /// call returns a null pointer. There are rare situations where `dlsym` returns a genuine null
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`os::unix::Library::get_singlethreaded`] call.
+    ///
+    /// [`os::unix::Library::get_singlethreaded`]: crate::os::unix::Library::get_singlethreaded
     ///
     /// # Examples
     ///

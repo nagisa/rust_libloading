@@ -36,7 +36,6 @@
 //! The compiler will ensure that the loaded function will not outlive the `Library` from which it comes,
 //! preventing the most common memory-safety issues.
 #![cfg_attr(any(unix, windows), deny(missing_docs, clippy::all, unreachable_pub, unused))]
-#![cfg_attr(docsrs, deny(broken_intra_doc_links))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod changelog;

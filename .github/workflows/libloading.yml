@@ -26,37 +26,26 @@ jobs:
             profile: minimal
             components: clippy
             default: true
-      - name: Update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: --manifest-path=Cargo.toml
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path=Cargo.toml
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path=Cargo.toml -- --nocapture
+          args: -- --nocapture
       - name: Test Release
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path=Cargo.toml --release -- --nocapture
+          args: --release -- --nocapture
       - name: Documentation
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --manifest-path=Cargo.toml
         env:
-          RUSTDOCFLAGS: --cfg docsrs
+          RUSTDOCFLAGS: --cfg docsrs -Drustdoc::broken_intra_doc_links
         if: ${{ matrix.rust_toolchain == 'nightly' }}
 
   windows-gnu-test:
