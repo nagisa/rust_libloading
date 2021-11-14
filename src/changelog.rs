@@ -192,7 +192,6 @@ pub mod r0_6_1 {}
 /// [`Error`]: crate::Error
 pub mod r0_6_0 {}
 
-
 /// Release 0.5.2 (2019-07-07)
 ///
 /// * Added API to convert OS-specific `Library` and `Symbol` conversion to underlying resources.
@@ -223,14 +222,12 @@ pub mod r0_5_0 {}
 /// * `cargo test --release` now works when testing libloading.
 pub mod r0_4_3 {}
 
-
 /// Release 0.4.2 (2017-09-24)
 ///
 /// * Improved error and race-condition handling on Windows;
 /// * Improved documentation about thread-safety of Library;
 /// * Added `Symbol::<Option<T>::lift_option() -> Option<Symbol<T>>` convenience method.
 pub mod r0_4_2 {}
-
 
 /// Release 0.4.1 (2017-08-29)
 ///
