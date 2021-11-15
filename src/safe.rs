@@ -1,7 +1,9 @@
 use super::Error;
-#[cfg(any(unix, docsrs))]
+#[cfg(docsrs)]
+use super::os::unix as imp; // the implementation used here doesn't matter particularly much...
+#[cfg(all(not(docsrs), unix))]
 use super::os::unix as imp;
-#[cfg(windows)]
+#[cfg(all(not(docsrs), windows))]
 use super::os::windows as imp;
 use std::ffi::OsStr;
 use std::fmt;
