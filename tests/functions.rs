@@ -4,7 +4,23 @@ extern crate winapi;
 extern crate libloading;
 use libloading::{Symbol, Library};
 
-const LIBPATH: &'static str = "target/libtest_helpers.module";
+const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
+const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
+static mut LIBPATH: String = String::new();
+
+fn lib_path() -> &'static str {
+    static INIT: ::std::sync::Once = ::std::sync::Once::new();
+
+    unsafe {
+        INIT.call_once(|| {
+            LIBPATH = format!(
+                "{}/libtest_helpers.module",
+                TARGET_TMPDIR.unwrap_or(TARGET_DIR.unwrap_or("target"))
+            );
+        });
+        &LIBPATH
+    }
+}
 
 fn make_helpers() {
     static ONCE: ::std::sync::Once = ::std::sync::Once::new();
@@ -14,7 +30,7 @@ fn make_helpers() {
         cmd
             .arg("src/test_helpers.rs")
             .arg("-o")
-            .arg(LIBPATH);
+            .arg(lib_path());
         if let Some(target) = std::env::var_os("TARGET") {
             cmd.arg("--target").arg(target);
         } else {
@@ -32,7 +48,7 @@ fn make_helpers() {
 fn test_id_u32() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         let f: Symbol<unsafe extern fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
         assert_eq!(42, f(42));
     }
@@ -51,7 +67,7 @@ struct S {
 fn test_id_struct() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         let f: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
         assert_eq!(S { a: 1, b: 2, c: 3, d: 4 }, f(S { a: 1, b: 2, c: 3, d: 4 }));
     }
@@ -61,7 +77,7 @@ fn test_id_struct() {
 fn test_0_no_0() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         let f: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
         let f2: Symbol<unsafe extern fn(S) -> S> = lib.get(b"test_identity_struct").unwrap();
         assert_eq!(*f, *f2);
@@ -79,7 +95,7 @@ fn wrong_name_fails() {
 fn missing_symbol_fails() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         lib.get::<*mut ()>(b"test_does_not_exist").err().unwrap();
         lib.get::<*mut ()>(b"test_does_not_exist\0").err().unwrap();
     }
@@ -89,7 +105,7 @@ fn missing_symbol_fails() {
 fn interior_null_fails() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         lib.get::<*mut ()>(b"test_does\0_not_exist").err().unwrap();
         lib.get::<*mut ()>(b"test\0_does_not_exist\0").err().unwrap();
     }
@@ -99,7 +115,7 @@ fn interior_null_fails() {
 fn test_incompatible_type() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         assert!(match lib.get::<()>(b"test_identity_u32\0") {
            Err(libloading::Error::IncompatibleSize) => true,
            _ => false,
@@ -114,7 +130,7 @@ fn test_incompatible_type_named_fn() {
         l.get::<T>(b"test_identity_u32\0")
     }
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         assert!(match get(&lib, test_incompatible_type_named_fn) {
            Err(libloading::Error::IncompatibleSize) => true,
            _ => false,
@@ -126,7 +142,7 @@ fn test_incompatible_type_named_fn() {
 fn test_static_u32() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         let var: Symbol<*mut u32> = lib.get(b"TEST_STATIC_U32\0").unwrap();
         **var = 42;
         let help: Symbol<unsafe extern fn() -> u32> = lib.get(b"test_get_static_u32\0").unwrap();
@@ -138,7 +154,7 @@ fn test_static_u32() {
 fn test_static_ptr() {
     make_helpers();
     unsafe {
-        let lib = Library::new(LIBPATH).unwrap();
+        let lib = Library::new(lib_path()).unwrap();
         let var: Symbol<*mut *mut ()> = lib.get(b"TEST_STATIC_PTR\0").unwrap();
         **var = *var as *mut _;
         let works: Symbol<unsafe extern fn() -> bool> =
@@ -158,7 +174,7 @@ fn manual_close_many_times() {
     let join_handles: Vec<_> = (0..16).map(|_| {
         std::thread::spawn(|| unsafe {
             for _ in 0..10000 {
-                let lib = Library::new(LIBPATH).expect("open library");
+                let lib = Library::new(lib_path()).expect("open library");
                 let _: Symbol<unsafe extern fn(u32) -> u32> =
                     lib.get(b"test_identity_u32").expect("get fn");
                 lib.close().expect("close is successful");
@@ -178,7 +194,7 @@ fn library_this_get() {
     make_helpers();
     // SAFE: functions are never called
     unsafe {
-        let _lib = Library::new(LIBPATH).unwrap();
+        let _lib = Library::new(lib_path()).unwrap();
         let this = Library::this();
         // Library we loaded in `_lib` (should be RTLD_LOCAL).
         assert!(this.get::<unsafe extern "C" fn()>(b"test_identity_u32").is_err());
@@ -194,7 +210,7 @@ fn library_this() {
     make_helpers();
     unsafe {
         // SAFE: well-known library without initialisers is loaded.
-        let _lib = Library::new(LIBPATH).unwrap();
+        let _lib = Library::new(lib_path()).unwrap();
         let this = Library::this().expect("this library");
         // SAFE: functions are never called.
         // Library we loaded in `_lib`.
