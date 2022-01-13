@@ -3,7 +3,7 @@ name = "libloading"
 # When bumping
 # * Don’t forget to add an entry to `src/changelog.rs`
 # * If bumping to an incompatible version, adjust the documentation in `src/lib.rs`
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
@@ -30,4 +30,4 @@ static_assertions = "1.1"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "libloading_docs"]

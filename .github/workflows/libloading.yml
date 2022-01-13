@@ -43,9 +43,11 @@ jobs:
       - name: Documentation
         uses: actions-rs/cargo@v1
         with:
-          command: doc
-        env:
-          RUSTDOCFLAGS: --cfg docsrs -Drustdoc::broken_intra_doc_links
+          command: rustdoc
+          args: |
+            -Zunstable-options
+            --config
+            'build.rustdogflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
         if: ${{ matrix.rust_toolchain == 'nightly' }}
 
   windows-gnu-test:
