@@ -47,7 +47,7 @@ jobs:
           args: |
             -Zunstable-options
             --config
-            'build.rustdogflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
+            'build.rustdocflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
         if: ${{ matrix.rust_toolchain == 'nightly' }}
 
   windows-gnu-test:
