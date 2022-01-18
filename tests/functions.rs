@@ -7,11 +7,13 @@ use libloading::{Library, Symbol};
 const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
 const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
 
-fn lib_path() -> &'static str {
-    format!(
-        "{}/libtest_helpers.module",
-        TARGET_TMPDIR.unwrap_or(TARGET_DIR.unwrap_or("target"))
-    )
+fn lib_path() -> std::path::PathBuf {
+    [
+        TARGET_TMPDIR.unwrap_or(TARGET_DIR.unwrap_or("target")),
+        "libtest_helpers.module",
+    ]
+    .iter()
+    .collect()
 }
 
 fn make_helpers() {
