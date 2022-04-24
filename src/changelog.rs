@@ -198,7 +198,7 @@ pub mod r0_6_1 {}
 /// Release 0.6.0 (2020-04-05)
 ///
 /// * Introduced a new method [`os::unix::Library::get_singlethreaded`];
-/// * Added (untested) support for building when targetting Redox and Fuchsia;
+/// * Added (untested) support for building when targeting Redox and Fuchsia;
 /// * The APIs exposed by this library no longer panic and instead return an `Err` when it used
 ///   to panic.
 ///
