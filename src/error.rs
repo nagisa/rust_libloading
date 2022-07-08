@@ -109,16 +109,16 @@ impl std::fmt::Display for Error {
             DlSymUnknown => write!(f, "dlsym failed, but system did not report the error"),
             DlClose { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
             DlCloseUnknown => write!(f, "dlclose failed, but system did not report the error"),
-            LoadLibraryExW { .. } => write!(f, "LoadLibraryExW failed"),
+            LoadLibraryExW { ref source } => write!(f, "LoadLibraryExW failed: {}", source.0),
             LoadLibraryExWUnknown =>
                 write!(f, "LoadLibraryExW failed, but system did not report the error"),
-            GetModuleHandleExW { .. } => write!(f, "GetModuleHandleExW failed"),
+            GetModuleHandleExW { ref source } => write!(f, "GetModuleHandleExW failed: {}", source.0),
             GetModuleHandleExWUnknown =>
                 write!(f, "GetModuleHandleExWUnknown failed, but system did not report the error"),
-            GetProcAddress { .. } => write!(f, "GetProcAddress failed"),
+            GetProcAddress { ref source } => write!(f, "GetProcAddress failed: {}", source.0),
             GetProcAddressUnknown =>
                 write!(f, "GetProcAddress failed, but system did not report the error"),
-            FreeLibrary { .. } => write!(f, "FreeLibrary failed"),
+            FreeLibrary { ref source } => write!(f, "FreeLibrary failed: {}", source.0),
             FreeLibraryUnknown =>
                 write!(f, "FreeLibrary failed, but system did not report the error"),
             CreateCString { .. } => write!(f, "could not create a C string from bytes"),
