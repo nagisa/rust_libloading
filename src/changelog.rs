@@ -1,5 +1,12 @@
 //! The change log.
 
+/// Release 0.7.4 (2022-11-07)
+///
+/// This release has no functional changes.
+///
+/// `RTLD_LAZY`, `RTLD_GLOBAL` and `RTLD_LOCAL` constants have been implemented for AIX platforms.
+pub mod r0_7_4 {}
+
 /// Release 0.7.3 (2022-01-15)
 ///
 /// This release has no functional changes.
