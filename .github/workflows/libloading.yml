@@ -1,10 +1,11 @@
-name: Test libloading
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
-    paths-ignore:
-    - '*.mkd'
-    - 'LICENSE'
+    branches: [master]
+    paths-ignore: ['*.mkd', 'LICENSE']
   pull_request:
     types: [opened, reopened, synchronize]
 
@@ -19,38 +20,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust ${{ matrix.rust_toolchain }}
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: ${{ matrix.rust_toolchain }}
-            profile: minimal
-            components: clippy
-            default: true
-      - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-      - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -- --nocapture
-      - name: Test Release
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release -- --nocapture
-      - name: Documentation
-        uses: actions-rs/cargo@v1
-        with:
-          command: rustdoc
-          args: |
-            -Zunstable-options
-            --config
-            'build.rustdocflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
+      - run: rustup install ${{ matrix.rust_toolchain }} --profile=minimal
+      - run: rustup default ${{ matrix.rust_toolchain }}
+      - run: rustup component add clippy
+      - run: cargo clippy
+      - run: cargo test -- --nocapture
+      - run: cargo test --release -- --nocapture
+      - run: cargo rustdoc -Zunstable-options --config 'build.rustdocflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
         if: ${{ matrix.rust_toolchain == 'nightly' }}
+        # pwsh.exe drops quotes kekw. https://stackoverflow.com/a/59036879
+        shell: bash
 
-  windows-gnu-test:
+  windows-test:
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -59,39 +40,35 @@ jobs:
         rust_target:
           - x86_64-pc-windows-gnu
           - i686-pc-windows-gnu
+        include:
+          - rust_target: x86_64-pc-windows-gnu
+            mingw_path: C:/msys64/mingw64/bin
+            package: mingw-w64-x86_64-gcc
+          - rust_target: i686-pc-windows-gnu
+            mingw_path: C:/msys64/mingw32/bin
+            package: mingw-w64-i686-gcc
     steps:
       - uses: actions/checkout@v2
-      - name: Add MSYS2 to the PATH
-        run: echo "c:/msys64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      - name: Add 32-bit mingw-w64 to the PATH
-        run: echo "c:/msys64/mingw32/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-        if: startsWith(matrix.rust_target, 'i686')
-      - name: Add 64-bit mingw-w64 to the PATH
-        run: echo "c:/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-        if: startsWith(matrix.rust_target, 'x86_64')
-      - name: Set TARGET variable
-        run: echo "TARGET=${{ matrix.rust_target}}" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Install Rust nightly
-        uses: actions-rs/toolchain@v1
+      - run: rustup install ${{ matrix.rust_toolchain }} --profile=minimal
+      - run: rustup default ${{ matrix.rust_toolchain }}
+      - run: rustup target add ${{ matrix.rust_target }}
+      - uses: msys2/setup-msys2@v2
         with:
-            toolchain: ${{ matrix.rust_toolchain }}
-            target: ${{ matrix.rust_target }}
-            profile: minimal
-            default: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml
+          release: false
+          install: ${{ matrix.package }}
+      - run: echo "c:/msys64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - run: echo "${{ matrix.mingw_path }}" | Out-File -FilePath $env:GITHUB_PATH -Append
+        if: ${{ matrix.mingw_path }}"
+      - run: cargo test --target ${{ matrix.rust_target }}
+        env:
+          TARGET: ${{ matrix.rust_target}}
 
   bare-cross-build:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        rust_toolchain: [nightly]
         rust_target:
           # BSDs: could be tested with full system emulation
           # - x86_64-unknown-dragonfly
@@ -105,25 +82,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust nightly
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: nightly
-            profile: minimal
-            default: true
-      - name: Fix-up toolchain
-        run: |
-            rustup component add rust-src --toolchain nightly --target ${{ matrix.rust_target }}
-      - name: Update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: --manifest-path=Cargo.toml
-      - name: Build ${{ matrix.rust_target }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target ${{ matrix.rust_target }} --manifest-path=Cargo.toml -Zbuild-std
+      - run: rustup install ${{ matrix.rust_toolchain }} --profile=minimal
+      - run: rustup default ${{ matrix.rust_toolchain }}
+      - run: rustup component add rust-src --toolchain nightly --target ${{ matrix.rust_target }}
+      - run: cargo build --target ${{ matrix.rust_target }} -Zbuild-std
 
   cross-ios-build:
     runs-on: macos-latest
@@ -137,20 +99,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust ${{ matrix.rust_toolchain }}
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: ${{ matrix.rust_toolchain }}
-            target: ${{ matrix.rust_target }}
-            profile: minimal
-            default: true
-      - name: Update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: --manifest-path=Cargo.toml
-      - name: Build ${{ matrix.rust_target }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target=${{ matrix.rust_target }} --manifest-path=Cargo.toml
+      - run: rustup install ${{ matrix.rust_toolchain }} --profile=minimal
+      - run: rustup default ${{ matrix.rust_toolchain }}
+      - run: rustup target add ${{ matrix.rust_target }}
+      - run: cargo build  --target=${{ matrix.rust_target }}
