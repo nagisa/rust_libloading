@@ -1,5 +1,17 @@
 //! The change log.
 
+/// Release 0.8.0 (2023-04-11)
+///
+/// ## (Potentially) breaking changes
+///
+/// * `winapi` dependency has been replaced with `windows-sys`.
+/// * As a result the MSRV has been increased to 1.48.
+///
+/// ## Non-breaking changes
+///
+/// * Support for the QNX Neutrino target has been added.
+pub mod r0_8_0 {}
+
 /// Release 0.7.4 (2022-11-07)
 ///
 /// This release has no functional changes.

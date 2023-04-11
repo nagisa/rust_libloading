@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! libloading = "0.7"
+//! libloading = "0.8"
 //! ```
 //!
 //! # Usage
