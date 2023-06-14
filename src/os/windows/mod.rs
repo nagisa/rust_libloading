@@ -1,59 +1,18 @@
 // A hack for docs.rs to build documentation that has both windows and linux documentation in the
 // same rustdoc build visible.
 #[cfg(all(libloading_docs, not(windows)))]
-mod windows_imports {
-    pub(super) enum HMODULE {}
-    pub(super) enum FARPROC {}
-    #[allow(non_camel_case_types)]
-    pub(super) enum THREAD_ERROR_MODE {}
-    #[allow(non_camel_case_types)]
-    pub(super) struct LOAD_LIBRARY_FLAGS;
-
-    pub(super) mod consts {
-        use super::LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_IGNORE_CODE_AUTHZ_LEVEL: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_AS_DATAFILE: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_AS_IMAGE_RESOURCE: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SEARCH_SYSTEM32: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SEARCH_USER_DIRS: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_WITH_ALTERED_SEARCH_PATH: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-        pub(crate) const LOAD_LIBRARY_SAFE_CURRENT_DIRS: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS;
-    }
-}
+mod windows_imports {}
 #[cfg(any(not(libloading_docs), windows))]
 mod windows_imports {
-    extern crate windows_sys;
-    pub(super) use self::windows_sys::Win32::Foundation::{GetLastError, FARPROC, HMODULE};
-    pub(super) use self::windows_sys::Win32::System::Diagnostics::Debug as debug_api;
-    pub(super) use self::windows_sys::Win32::System::Diagnostics::Debug::SEM_FAILCRITICALERRORS;
-    pub(super) use self::windows_sys::Win32::System::Diagnostics::Debug::THREAD_ERROR_MODE;
-
-    pub(super) use self::windows_sys::Win32::System::LibraryLoader as library_loader;
-    pub(super) use self::windows_sys::Win32::System::LibraryLoader::LOAD_LIBRARY_FLAGS;
-
+    use super::{DWORD, BOOL, HANDLE, HMODULE, FARPROC};
     pub(super) use std::os::windows::ffi::{OsStrExt, OsStringExt};
-
-    pub(super) mod consts {
-        pub(crate) use super::windows_sys::Win32::System::LibraryLoader::{
-            LOAD_IGNORE_CODE_AUTHZ_LEVEL,
-            LOAD_LIBRARY_AS_DATAFILE,
-            LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE,
-            LOAD_LIBRARY_AS_IMAGE_RESOURCE,
-            LOAD_LIBRARY_SEARCH_APPLICATION_DIR,
-            LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
-            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
-            LOAD_LIBRARY_SEARCH_SYSTEM32,
-            LOAD_LIBRARY_SEARCH_USER_DIRS,
-            LOAD_WITH_ALTERED_SEARCH_PATH,
-            LOAD_LIBRARY_REQUIRE_SIGNED_TARGET,
-            LOAD_LIBRARY_SAFE_CURRENT_DIRS,
-        };
-    }
+    windows_targets::link!("kernel32.dll" "system" fn GetLastError() -> DWORD);
+    windows_targets::link!("kernel32.dll" "system" fn SetThreadErrorMode(new_mode: DWORD, old_mode: *mut DWORD) -> BOOL);
+    windows_targets::link!("kernel32.dll" "system" fn GetModuleHandleExW(flags: u32, module_name: *const u16, module: *mut HMODULE) -> BOOL);
+    windows_targets::link!("kernel32.dll" "system" fn FreeLibrary(module: HMODULE) -> BOOL);
+    windows_targets::link!("kernel32.dll" "system" fn LoadLibraryExW(filename: *const u16, file: HANDLE, flags: DWORD) -> HMODULE);
+    windows_targets::link!("kernel32.dll" "system" fn GetModuleFileNameW(module: HMODULE, filename: *mut u16, size: DWORD) -> DWORD);
+    windows_targets::link!("kernel32.dll" "system" fn GetProcAddress(module: HMODULE, procname: *const u8) -> FARPROC);
 }
 
 use self::windows_imports::*;
@@ -124,7 +83,7 @@ impl Library {
         unsafe {
             let mut handle: HMODULE = 0;
             with_get_last_error(|source| crate::Error::GetModuleHandleExW { source }, || {
-                let result = library_loader::GetModuleHandleExW(0, std::ptr::null_mut(), &mut handle);
+                let result = GetModuleHandleExW(0, std::ptr::null_mut(), &mut handle);
                 if result == 0 {
                     None
                 } else {
@@ -159,7 +118,7 @@ impl Library {
             with_get_last_error(|source| crate::Error::GetModuleHandleExW { source }, || {
                 // Make sure no winapi calls as a result of drop happen inside this closure, because
                 // otherwise that might change the return value of the GetLastError.
-                let result = library_loader::GetModuleHandleExW(0, wide_filename.as_ptr(), &mut handle);
+                let result = GetModuleHandleExW(0, wide_filename.as_ptr(), &mut handle);
                 if result == 0 {
                     None
                 } else {
@@ -199,7 +158,7 @@ impl Library {
         let ret = with_get_last_error(|source| crate::Error::LoadLibraryExW { source }, || {
             // Make sure no winapi calls as a result of drop happen inside this closure, because
             // otherwise that might change the return value of the GetLastError.
-            let handle = library_loader::LoadLibraryExW(wide_filename.as_ptr(), 0, flags);
+            let handle = LoadLibraryExW(wide_filename.as_ptr(), 0, flags);
             if handle == 0 {
                 None
             } else {
@@ -226,7 +185,7 @@ impl Library {
         ensure_compatible_types::<T, FARPROC>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
         with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
-            let symbol = library_loader::GetProcAddress(self.0, symbol.as_ptr().cast());
+            let symbol = GetProcAddress(self.0, symbol.as_ptr().cast());
             if symbol.is_none() {
                 None
             } else {
@@ -247,7 +206,7 @@ impl Library {
         ensure_compatible_types::<T, FARPROC>()?;
         with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
             let ordinal = ordinal as usize as *const _;
-            let symbol = library_loader::GetProcAddress(self.0, ordinal);
+            let symbol = GetProcAddress(self.0, ordinal);
             if symbol.is_none() {
                 None
             } else {
@@ -285,7 +244,7 @@ impl Library {
     /// The underlying data structures may still get leaked if an error does occur.
     pub fn close(self) -> Result<(), crate::Error> {
         let result = with_get_last_error(|source| crate::Error::FreeLibrary { source }, || {
-            if unsafe { library_loader::FreeLibrary(self.0) == 0 } {
+            if unsafe { FreeLibrary(self.0) == 0 } {
                 None
             } else {
                 Some(())
@@ -301,7 +260,7 @@ impl Library {
 
 impl Drop for Library {
     fn drop(&mut self) {
-        unsafe { library_loader::FreeLibrary(self.0); }
+        unsafe { FreeLibrary(self.0); }
     }
 }
 
@@ -311,7 +270,7 @@ impl fmt::Debug for Library {
             // FIXME: use Maybeuninit::uninit_array when stable
             let mut buf =
                 mem::MaybeUninit::<[mem::MaybeUninit<u16>; 1024]>::uninit().assume_init();
-            let len = library_loader::GetModuleFileNameW(self.0,
+            let len = GetModuleFileNameW(self.0,
                 buf[..].as_mut_ptr().cast(), 1024) as usize;
             if len == 0 {
                 f.write_str(&format!("Library@{:#x}", self.0))
@@ -381,14 +340,14 @@ impl<T> fmt::Debug for Symbol<T> {
     }
 }
 
-struct ErrorModeGuard(THREAD_ERROR_MODE);
+struct ErrorModeGuard(DWORD);
 
 impl ErrorModeGuard {
     #[allow(clippy::if_same_then_else)]
     fn new() -> Option<ErrorModeGuard> {
         unsafe {
             let mut previous_mode = 0;
-            if debug_api::SetThreadErrorMode(SEM_FAILCRITICALERRORS, &mut previous_mode) == 0 {
+            if SetThreadErrorMode(SEM_FAILCRITICALERRORS, &mut previous_mode) == 0 {
                 // How in the world is it possible for what is essentially a simple variable swap
                 // to fail?  For now we just ignore the error -- the worst that can happen here is
                 // the previous mode staying on and user seeing a dialog error on older Windows
@@ -406,7 +365,7 @@ impl ErrorModeGuard {
 impl Drop for ErrorModeGuard {
     fn drop(&mut self) {
         unsafe {
-            debug_api::SetThreadErrorMode(self.0, ptr::null_mut());
+            SetThreadErrorMode(self.0, ptr::null_mut());
         }
     }
 }
@@ -424,13 +383,29 @@ where F: FnOnce() -> Option<T> {
     })
 }
 
+
+#[allow(clippy::upper_case_acronyms)]
+type BOOL = i32;
+#[allow(clippy::upper_case_acronyms)]
+type DWORD = u32;
+#[allow(clippy::upper_case_acronyms)]
+type HANDLE = isize;
+#[allow(clippy::upper_case_acronyms)]
+type HMODULE = isize;
+#[allow(clippy::upper_case_acronyms)]
+type FARPROC = Option<unsafe extern "system" fn() -> isize>;
+#[allow(non_camel_case_types)]
+type LOAD_LIBRARY_FLAGS = DWORD;
+
+const SEM_FAILCRITICALERRORS: DWORD = 1;
+
 /// Do not check AppLocker rules or apply Software Restriction Policies for the DLL.
 ///
 /// This action applies only to the DLL being loaded and not to its dependencies. This value is
 /// recommended for use in setup programs that must run extracted DLLs during installation.
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_IGNORE_CODE_AUTHZ_LEVEL: LOAD_LIBRARY_FLAGS = consts::LOAD_IGNORE_CODE_AUTHZ_LEVEL;
+pub const LOAD_IGNORE_CODE_AUTHZ_LEVEL: LOAD_LIBRARY_FLAGS = 0x00000010;
 
 /// Map the file into the calling process’ virtual address space as if it were a data file.
 ///
@@ -440,7 +415,7 @@ pub const LOAD_IGNORE_CODE_AUTHZ_LEVEL: LOAD_LIBRARY_FLAGS = consts::LOAD_IGNORE
 /// messages or resources from it.
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_AS_DATAFILE: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_AS_DATAFILE;
+pub const LOAD_LIBRARY_AS_DATAFILE: LOAD_LIBRARY_FLAGS = 0x00000002;
 
 /// Map the file into the calling process’ virtual address space as if it were a data file.
 ///
@@ -449,7 +424,7 @@ pub const LOAD_LIBRARY_AS_DATAFILE: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_AS
 /// while it is in use. However, the DLL can still be opened by other processes.
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE;
+pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: LOAD_LIBRARY_FLAGS = 0x00000040;
 
 /// Map the file into the process’ virtual address space as an image file.
 ///
@@ -461,7 +436,7 @@ pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: LOAD_LIBRARY_FLAGS = consts::LOAD_
 /// [`LOAD_LIBRARY_AS_DATAFILE`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_AS_IMAGE_RESOURCE: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_AS_IMAGE_RESOURCE;
+pub const LOAD_LIBRARY_AS_IMAGE_RESOURCE: LOAD_LIBRARY_FLAGS = 0x00000020;
 
 /// Search the application's installation directory for the DLL and its dependencies.
 ///
@@ -469,7 +444,7 @@ pub const LOAD_LIBRARY_AS_IMAGE_RESOURCE: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBR
 /// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SEARCH_APPLICATION_DIR;
+pub const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: LOAD_LIBRARY_FLAGS = 0x00000200;
 
 /// Search default directories when looking for the DLL and its dependencies.
 ///
@@ -479,7 +454,7 @@ pub const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: LOAD_LIBRARY_FLAGS = consts::LOAD
 /// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SEARCH_DEFAULT_DIRS;
+pub const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: LOAD_LIBRARY_FLAGS = 0x00001000;
 
 /// Directory that contains the DLL is temporarily added to the beginning of the list of
 /// directories that are searched for the DLL’s dependencies.
@@ -490,7 +465,7 @@ pub const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: LOAD_LIBRARY_FLAGS = consts::LOAD_LI
 /// with [`LOAD_WITH_ALTERED_SEARCH_PATH`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR;
+pub const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: LOAD_LIBRARY_FLAGS = 0x00000100;
 
 /// Search `%windows%\system32` for the DLL and its dependencies.
 ///
@@ -498,7 +473,7 @@ pub const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: LOAD_LIBRARY_FLAGS = consts::LOAD_LI
 /// [`LOAD_WITH_ALTERED_SEARCH_PATH`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SEARCH_SYSTEM32: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SEARCH_SYSTEM32;
+pub const LOAD_LIBRARY_SEARCH_SYSTEM32: LOAD_LIBRARY_FLAGS = 0x00000800;
 
 ///  Directories added using the `AddDllDirectory` or the `SetDllDirectory` function are searched
 ///  for the DLL and its dependencies.
@@ -508,7 +483,7 @@ pub const LOAD_LIBRARY_SEARCH_SYSTEM32: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRAR
 ///  combined with [`LOAD_WITH_ALTERED_SEARCH_PATH`].
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SEARCH_USER_DIRS: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SEARCH_USER_DIRS;
+pub const LOAD_LIBRARY_SEARCH_USER_DIRS: LOAD_LIBRARY_FLAGS = 0x00000400;
 
 /// If `filename` specifies an absolute path, the system uses the alternate file search strategy
 /// discussed in the [Remarks section] to find associated executable modules that the specified
@@ -523,15 +498,15 @@ pub const LOAD_LIBRARY_SEARCH_USER_DIRS: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRA
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
 ///
 /// [Remarks]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#remarks
-pub const LOAD_WITH_ALTERED_SEARCH_PATH: LOAD_LIBRARY_FLAGS = consts::LOAD_WITH_ALTERED_SEARCH_PATH;
+pub const LOAD_WITH_ALTERED_SEARCH_PATH: LOAD_LIBRARY_FLAGS = 0x00000008;
 
 /// Specifies that the digital signature of the binary image must be checked at load time.
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_REQUIRE_SIGNED_TARGET;
+pub const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: LOAD_LIBRARY_FLAGS = 0x00000080;
 
 /// Allow loading a DLL for execution from the current directory only if it is under a directory in
 /// the Safe load list.
 ///
 /// See [flag documentation on MSDN](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters).
-pub const LOAD_LIBRARY_SAFE_CURRENT_DIRS: LOAD_LIBRARY_FLAGS = consts::LOAD_LIBRARY_SAFE_CURRENT_DIRS;
+pub const LOAD_LIBRARY_SAFE_CURRENT_DIRS: LOAD_LIBRARY_FLAGS = 0x00002000;
