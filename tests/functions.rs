@@ -133,7 +133,7 @@ fn test_incompatible_type() {
 #[test]
 fn test_incompatible_type_named_fn() {
     make_helpers();
-    unsafe fn get<'a, T>(l: &'a Library, _: T) -> Result<Symbol<'a, T>, libloading::Error> {
+    unsafe fn get<T>(l: &Library, _: T) -> Result<Symbol<'_, T>, libloading::Error> {
         l.get::<T>(b"test_identity_u32\0")
     }
     unsafe {
