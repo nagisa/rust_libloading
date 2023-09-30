@@ -1,5 +1,11 @@
 //! The change log.
 
+/// Release 0.8.1 (2023-09-30)
+///
+/// ## Non-breaking changes
+///
+/// * Support for GNU Hurd.
+
 /// Release 0.8.0 (2023-04-11)
 ///
 /// ## (Potentially) breaking changes
