@@ -1,10 +1,10 @@
-use super::Error;
 #[cfg(libloading_docs)]
 use super::os::unix as imp; // the implementation used here doesn't matter particularly much...
 #[cfg(all(not(libloading_docs), unix))]
 use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
+use super::Error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::marker;

@@ -13,21 +13,17 @@ use std::ffi::CStr;
 //
 // The DLLs were kindly compiled by WindowsBunny (aka. @retep998).
 
-#[cfg(target_arch="x86")]
+#[cfg(target_arch = "x86")]
 fn load_ordinal_lib() -> Library {
-    unsafe {
-        Library::new("tests/nagisa32.dll").expect("nagisa32.dll")
-    }
+    unsafe { Library::new("tests/nagisa32.dll").expect("nagisa32.dll") }
 }
 
-#[cfg(target_arch="x86_64")]
+#[cfg(target_arch = "x86_64")]
 fn load_ordinal_lib() -> Library {
-    unsafe {
-        Library::new("tests/nagisa64.dll").expect("nagisa64.dll")
-    }
+    unsafe { Library::new("tests/nagisa64.dll").expect("nagisa64.dll") }
 }
 
-#[cfg(any(target_arch="x86", target_arch="x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[test]
 fn test_ordinal() {
     let lib = load_ordinal_lib();
@@ -37,7 +33,7 @@ fn test_ordinal() {
     }
 }
 
-#[cfg(any(target_arch="x86", target_arch="x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[test]
 fn test_ordinal_missing_fails() {
     let lib = load_ordinal_lib();
