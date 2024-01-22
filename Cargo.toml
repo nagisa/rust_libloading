@@ -15,7 +15,7 @@ categories = ["api-bindings"]
 rust-version = "1.48.0"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.48"
+version = "0.52"
 features = [
     "Win32_Foundation",
     "Win32_System_Diagnostics_Debug",
