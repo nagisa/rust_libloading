@@ -3,7 +3,7 @@ name = "libloading"
 # When bumping
 # * Don’t forget to add an entry to `src/changelog.rs`
 # * If bumping to an incompatible version, adjust the documentation in `src/lib.rs`
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
@@ -15,7 +15,7 @@ categories = ["api-bindings"]
 rust-version = "1.48.0"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.52"
+version = ">=0.48, <0.53"
 features = [
     "Win32_Foundation",
     "Win32_System_Diagnostics_Debug",

@@ -1,10 +1,18 @@
 //! The change log.
 
+/// Release 0.8.2 (2024-03-01)
+///
+/// ## Non-breaking changes
+///
+/// * Allow `windows-sys` dependency up to the currently most recent 0.52.
+pub mod r0_8_2 {}
+
 /// Release 0.8.1 (2023-09-30)
 ///
 /// ## Non-breaking changes
 ///
 /// * Support for GNU Hurd.
+pub mod r0_8_1 {}
 
 /// Release 0.8.0 (2023-04-11)
 ///
