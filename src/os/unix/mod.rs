@@ -197,7 +197,7 @@ impl Library {
         //
         // We try to leave as little space as possible for this to occur, but we can’t exactly
         // fully prevent it.
-        match with_dlerror(|desc| crate::Error::DlSym { desc }, || {
+        let result = with_dlerror(|desc| crate::Error::DlSym { desc }, || {
             dlerror();
             let symbol = dlsym(self.handle, symbol.as_ptr());
             if symbol.is_null() {
@@ -208,7 +208,8 @@ impl Library {
                     pd: marker::PhantomData
                 })
             }
-        }) {
+        });
+        match result {
             Err(None) => on_null(),
             Err(Some(e)) => Err(e),
             Ok(x) => Ok(x)
