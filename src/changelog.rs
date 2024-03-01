@@ -10,10 +10,12 @@
 ///
 /// ## Non-breaking changes
 ///
-/// The crate switches the dependency on `windows-sys` to a `windows-target` one for Windows
+/// * The crate switches the dependency on `windows-sys` to a `windows-target` one for Windows
 /// bindings. In order to enable this `libloading` defines any bindings necessary for its operation
-/// internally, just like has been done for `unix` targets. This should result in leaner
-/// dependency trees.
+/// internally, just like has been done for `unix` targets. This should result in leaner dependency
+/// trees.
+/// * `os::unix::with_dlerror` has been exposed for the users who need to invoke `dl*` family of
+/// functions manually.
 pub mod r0_8_2 {}
 
 /// Release 0.8.1 (2023-09-30)
