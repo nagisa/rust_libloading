@@ -1,5 +1,13 @@
 //! The change log.
 
+/// Release 0.8.3 (2024-03-05)
+///
+/// ## Non-breaking changes
+///
+/// A `dev-dependency` on `windows-sys` that was unconditionally introduced in
+/// [0.8.2](r0_8_2) has been made conditional.
+pub mod r0_8_3 {}
+
 /// Release 0.8.2 (2024-03-01)
 ///
 /// ## (Potentially) breaking changes
