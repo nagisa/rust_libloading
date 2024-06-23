@@ -19,11 +19,11 @@ pub mod r0_8_3 {}
 /// ## Non-breaking changes
 ///
 /// * The crate switches the dependency on `windows-sys` to a `windows-target` one for Windows
-/// bindings. In order to enable this `libloading` defines any bindings necessary for its operation
-/// internally, just like has been done for `unix` targets. This should result in leaner dependency
-/// trees.
+///   bindings. In order to enable this `libloading` defines any bindings necessary for its operation
+///   internally, just like has been done for `unix` targets. This should result in leaner dependency
+///   trees.
 /// * `os::unix::with_dlerror` has been exposed for the users who need to invoke `dl*` family of
-/// functions manually.
+///   functions manually.
 pub mod r0_8_2 {}
 
 /// Release 0.8.1 (2023-09-30)
@@ -194,9 +194,9 @@ pub mod r0_7_0 {}
 /// Release 0.6.7 (2021-01-14)
 ///
 /// * Added a [`os::windows::Library::open_already_loaded`] to obtain a handle to a library that
-/// must already be loaded. There is no portable equivalent for all UNIX targets. Users who do not
-/// care about portability across UNIX platforms may use [`os::unix::Library::open`] with
-/// `libc::RTLD_NOLOAD`;
+///   must already be loaded. There is no portable equivalent for all UNIX targets. Users who do
+///   not care about portability across UNIX platforms may use [`os::unix::Library::open`] with
+///   `libc::RTLD_NOLOAD`;
 ///
 /// [`os::windows::Library::open_already_loaded`]: crate::os::windows::Library::open_already_loaded
 /// [`os::unix::Library::open`]: crate::os::unix::Library::open
@@ -225,7 +225,7 @@ pub mod r0_6_4 {}
 /// Release 0.6.3 (2020-08-22)
 ///
 /// * Improve documentation, allowing to view all of the os-specific functionality from
-/// documentation generated for any target;
+///   documentation generated for any target;
 /// * Add [`os::windows::Library::this`];
 /// * Added constants to use with OS-specific `Library::open`;
 /// * Add [`library_filename`].
@@ -356,9 +356,9 @@ pub mod r0_3_1 {}
 /// * Improved test suite by building our own library to test against;
 /// * All `Library`-ies now implement `Send`.
 /// * Added `impl From<os::platform::Library> for Library` and `impl From<Library> for
-/// os::platform::Library` allowing wrapping and extracting the platform-specific library handle;
+///   os::platform::Library` allowing wrapping and extracting the platform-specific library handle;
 /// * Added methods to wrap (`Symbol::from_raw`) and unwrap (`Symbol::into_raw`) the safe `Symbol`
-/// wrapper into unsafe `os::platform::Symbol`.
+///   wrapper into unsafe `os::platform::Symbol`.
 ///
 /// The last two additions focus on not restricting potential usecases of this library, allowing
 /// users of the library to circumvent safety checks if need be.
@@ -373,5 +373,5 @@ pub mod r0_3_1 {}
 /// ## os::platform
 /// * Added `os::unix::Library::open` which allows specifying arbitrary flags (e.g. `RTLD_LAZY`);
 /// * Added `os::windows::Library::get_ordinal` which allows finding a function or variable by its
-/// ordinal number;
+///   ordinal number;
 pub mod r0_3_0 {}

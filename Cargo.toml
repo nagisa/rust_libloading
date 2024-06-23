@@ -31,3 +31,6 @@ static_assertions = "1.1"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "libloading_docs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(libloading_docs)'] }
