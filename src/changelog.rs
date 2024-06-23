@@ -1,5 +1,13 @@
 //! The change log.
 
+
+/// Release 0.8.4 (2024-06-23)
+///
+/// ## Non-breaking changes
+///
+/// Compilation when targetting Apple's visionos, watchos and tvos targets has been fixed.
+pub mod r0_8_4 {}
+
 /// Release 0.8.3 (2024-03-05)
 ///
 /// ## Non-breaking changes
