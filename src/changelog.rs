@@ -5,7 +5,7 @@
 ///
 /// ## Non-breaking changes
 ///
-/// Compilation when targetting Apple's visionos, watchos and tvos targets has been fixed.
+/// Compilation when targeting Apple's visionos, watchos and tvos targets has been fixed.
 pub mod r0_8_4 {}
 
 /// Release 0.8.3 (2024-03-05)
@@ -132,7 +132,7 @@ pub mod r0_7_1 {}
 /// Various executable and shared library formats define conventions and machinery to execute
 /// arbitrary code when a program or a shared library is loaded. On systems using the PE format
 /// (e.g. Windows) this is available via the optional `DllMain` initializer. Various systems
-/// utilizing the ELF format take a sightly different approach of maintaining an array of function
+/// utilizing the ELF format take a slightly different approach of maintaining an array of function
 /// pointers in the `.init_array` section. A very similar mechanism exists on systems that utilize
 /// the Mach-O format.
 ///
