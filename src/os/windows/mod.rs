@@ -303,7 +303,7 @@ impl<T> Symbol<T> {
 
     /// Convert the loaded `Symbol` into a raw pointer.
     pub fn as_raw_ptr(self) -> *mut raw::c_void {
-        return self.pointer
+        self.pointer
             .map(|raw| raw as *mut raw::c_void)
             .unwrap_or(std::ptr::null_mut())
     }
