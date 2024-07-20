@@ -1,10 +1,10 @@
-use super::Error;
 #[cfg(libloading_docs)]
 use super::os::unix as imp; // the implementation used here doesn't matter particularly much...
 #[cfg(all(not(libloading_docs), unix))]
 use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
+use super::Error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::marker;
@@ -260,7 +260,14 @@ impl<'lib, T> Symbol<'lib, T> {
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
     pub unsafe fn try_as_raw_ptr(self) -> Option<*mut raw::c_void> {
-        return Some(unsafe{self.into_raw()}.as_raw_ptr());
+        Some(
+            #[allow(unused_unsafe)] // 1.56.0 compat
+            unsafe {
+                // SAFE: the calling function has the same soundness invariants as this callee.
+                self.into_raw()
+            }
+            .as_raw_ptr(),
+        )
     }
 }
 
@@ -310,3 +317,4 @@ impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
 
 unsafe impl<'lib, T: Send> Send for Symbol<'lib, T> {}
 unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
+

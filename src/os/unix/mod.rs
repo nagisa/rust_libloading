@@ -400,7 +400,7 @@ impl<T> Symbol<T> {
     /// Convert the loaded `Symbol` into a raw pointer.
     /// For unix this does the same as into_raw.
     pub fn as_raw_ptr(self) -> *mut raw::c_void {
-        return self.pointer
+        self.pointer
     }
 }
 
