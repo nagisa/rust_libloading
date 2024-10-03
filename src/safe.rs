@@ -11,6 +11,13 @@ use std::marker;
 use std::ops;
 use std::os::raw;
 
+/// Flag type for passing to [`Library::new_with_flags`]
+#[cfg(unix)]
+pub type LoadFlags = std::os::raw::c_int;
+/// Flag type for passing to [`Library::new_with_flags`]
+#[cfg(windows)]
+pub type LoadFlags = u32;
+
 /// A loaded dynamic library.
 #[cfg_attr(libloading_docs, doc(cfg(any(unix, windows))))]
 pub struct Library(imp::Library);
@@ -83,6 +90,66 @@ impl Library {
     /// ```
     pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
+    }
+
+    /// Find and load a dynamic library, and specify open flags.
+    ///
+    /// This provides the same functionality as [`new`] and allows using the same safer types, but
+    /// provides a way to control which flags are used to open the shared library. Note that flags
+    /// are different on different operating systems and in order for this to be used in a
+    /// cross-platform way, different flags must be specified for Unix and Windows. See constants
+    /// in [`os::unix`] and [`os::windows`] for options.
+    ///
+    /// See [`new`] for further documentation about safe usage and platform-specific behavior.
+    ///
+    /// # Safety
+    ///
+    /// All safety requirements specified by [`new`] must be followed for `new_with_flags`.
+    ///
+    /// Some flags may change the ways that library initialization run, or that the libraries may
+    /// be used. This must be taken into account.
+    ///
+    /// # Tips
+    ///
+    /// Unix always requires one of either [RTLD_LAZY](crate::os::unix::RTLD_LAZY) or
+    /// [RTLD_NOW](crate::os::unix::RTLD_NOW) to be specified.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use libloading::{Library, os};
+    ///
+    /// // When debugging, relocate immediately to catch any missing symbols. Otherwise
+    /// // load lazily to speed up loading
+    /// #[cfg(unix)]
+    /// let flags = if cfg!(debug_assertions) { os::unix::RTLD_NOW } else { os::unix::RTLD_LAZY };
+    ///
+    /// // Windows has no similar controls
+    /// #[cfg(windows)]
+    /// let flags = 0;
+    /// 
+    /// // SAFETY: `awesome` has no unsound initialization or exit routines
+    /// unsafe {
+    ///     let lib = Library::new_with_flags("/path/to/awesome.module", flags).unwrap();
+    ///     // ...
+    ///     # let _ = lib;
+    /// }
+    /// ```
+    ///
+    /// [`new`]: Library::new
+    /// [`os::unix`]: crate::os::unix
+    /// [`os::windows`]: crate::os::windows
+    pub unsafe fn new_with_flags<P: AsRef<OsStr>>(
+        filename: P,
+        flags: LoadFlags,
+    ) -> Result<Library, Error> {
+        #[cfg(unix)]
+        let res = imp::Library::open(Some(filename), flags);
+
+        #[cfg(windows)]
+        let res = imp::Library::load_with_flags(filename, flags);
+
+        res.map(From::from)
     }
 
     /// Get a pointer to a function or static variable by symbol name.
@@ -317,4 +384,3 @@ impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
 
 unsafe impl<'lib, T: Send> Send for Symbol<'lib, T> {}
 unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
-
