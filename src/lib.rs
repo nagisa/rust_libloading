@@ -49,7 +49,6 @@ pub use self::error::Error;
 #[cfg(any(unix, windows, libloading_docs))]
 pub use self::safe::{Library, Symbol};
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
-use std::ffi::{OsStr, OsString};
 
 /// Converts a library name to a filename generally appropriate for use on the system.
 ///
@@ -68,11 +67,7 @@ use std::ffi::{OsStr, OsString};
 ///     Library::new(library_filename("LLVM"))
 /// };
 /// ```
-pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
+pub fn library_filename<S: AsRef<str>>(name: S) -> String {
     let name = name.as_ref();
-    let mut string = OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
-    string.push(DLL_PREFIX);
-    string.push(name);
-    string.push(DLL_SUFFIX);
-    string
+    format!("{DLL_PREFIX}{name}{DLL_SUFFIX}")
 }
