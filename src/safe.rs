@@ -145,7 +145,7 @@ impl Library {
     ///     **awesome_variable = 42.0;
     /// };
     /// ```
-    pub unsafe fn get<'lib, T>(&'lib self, symbol: &[u8]) -> Result<Symbol<'lib, T>, Error> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, Error> {
         self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
     }
 
@@ -302,19 +302,19 @@ impl<'lib, T> Clone for Symbol<'lib, T> {
 }
 
 // FIXME: implement FnOnce for callable stuff instead.
-impl<'lib, T> ops::Deref for Symbol<'lib, T> {
+impl<T> ops::Deref for Symbol<'_, T> {
     type Target = T;
     fn deref(&self) -> &T {
         ops::Deref::deref(&self.inner)
     }
 }
 
-impl<'lib, T> fmt::Debug for Symbol<'lib, T> {
+impl<T> fmt::Debug for Symbol<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
 
-unsafe impl<'lib, T: Send> Send for Symbol<'lib, T> {}
-unsafe impl<'lib, T: Sync> Sync for Symbol<'lib, T> {}
+unsafe impl<T: Send> Send for Symbol<'_, T> {}
+unsafe impl<T: Sync> Sync for Symbol<'_, T> {}
 
