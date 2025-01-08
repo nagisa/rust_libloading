@@ -16,10 +16,10 @@ rust-version = "1.56.0"
 edition = "2015"
 
 [target.'cfg(windows)'.dependencies.windows-targets]
-version = ">=0.48, <0.53"
+version = ">=0.48, <0.54"
 
 [target.'cfg(windows)'.dev-dependencies.windows-sys]
-version = ">=0.52,<0.59"
+version = ">=0.52,<0.60"
 features = ["Win32_Foundation"]
 
 [target.'cfg(unix)'.dependencies.cfg-if]
