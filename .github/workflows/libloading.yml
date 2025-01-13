@@ -24,7 +24,7 @@ jobs:
       - run: rustup default ${{ matrix.rust_toolchain }}
       - run: rustup component add clippy
       - run: cargo update -p libc --precise 0.2.155
-        if: ${{ matrix.rust_toolchain == "1.56.0" }}
+        if: ${{ matrix.rust_toolchain == '1.56.0' }}
       - run: cargo clippy
       - run: cargo test -- --nocapture
       - run: cargo test --release -- --nocapture
