@@ -191,6 +191,8 @@ fn test_static_ptr() {
 // the target. Especially since it is very unlikely to be fixed given the state of support its
 // support.
 #[cfg(not(all(target_arch = "x86", target_os = "windows", target_env = "gnu")))]
+// Cygwin returns errors on `close`.
+#[cfg(not(target_os = "cygwin"))]
 fn manual_close_many_times() {
     make_helpers();
     let join_handles: Vec<_> = (0..16)
@@ -224,6 +226,8 @@ fn library_this_get() {
             .get::<unsafe extern "C" fn()>(b"test_identity_u32")
             .is_err());
         // Something obscure from libc...
+        // Cygwin behaves like Windows so ignore it.
+        #[cfg(not(target_os = "cygwin"))]
         assert!(this.get::<unsafe extern "C" fn()>(b"freopen").is_ok());
     }
 }

@@ -278,7 +278,8 @@ impl Library {
                 target_os = "solaris",
                 target_os = "illumos",
                 target_os = "redox",
-                target_os = "fuchsia"
+                target_os = "fuchsia",
+                target_os = "cygwin",
             ))] {
                 self.get_singlethreaded(symbol)
             } else {
