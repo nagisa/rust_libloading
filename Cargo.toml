@@ -34,4 +34,7 @@ all-features = true
 rustdoc-args = ["--cfg", "libloading_docs"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(libloading_docs)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(libloading_docs)',
+    'cfg(target_os, values("cygwin"))',
+] }
