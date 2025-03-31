@@ -79,9 +79,11 @@ jobs:
           release: false
           install: gcc
       - run: echo "INPUT(libmsys-2.0.a)" | Out-File -FilePath "C:\msys64\usr\lib\libcygwin.a"
-      - run: cargo test --target x86_64-pc-cygwin -Zbuild-std
+      - run: |
+          $env:PATH = "C:\msys64\usr\bin\;$env:PATH"
+          cargo test --target x86_64-pc-cygwin -Zbuild-std
         env:
-          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: C:\msys64\usr\bin\x86_64-pc-msys-gcc.exe
+          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: x86_64-pc-msys-gcc.exe
 
   bare-cross-build:
     runs-on: ubuntu-latest
