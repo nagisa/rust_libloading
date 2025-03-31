@@ -82,7 +82,7 @@ jobs:
       - run: cargo test --target x86_64-pc-cygwin -Zbuild-std
         env:
           TARGET: x86_64-pc-windows-msvc
-          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: x86_64-pc-msys-gcc.exe
+          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: C:\msys64\usr\bin\x86_64-pc-msys-gcc.exe
 
   bare-cross-build:
     runs-on: ubuntu-latest
