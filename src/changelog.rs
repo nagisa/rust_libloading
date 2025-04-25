@@ -1,6 +1,13 @@
 //! The change log.
 
 
+/// Release 0.8.7 (2025-04-26)
+///
+/// ## Non-breaking changes
+///
+/// Add support for the `*-pc-cygwin` target.
+pub mod r0_8_7 {}
+
 /// Release 0.8.4 (2024-06-23)
 ///
 /// ## Non-breaking changes
