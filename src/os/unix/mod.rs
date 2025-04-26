@@ -8,11 +8,13 @@ mod unix_imports {
 }
 
 pub use self::consts::*;
+use crate::error::Error;
+use crate::util::ensure_compatible_types;
 use self::unix_imports::*;
-use std::ffi::{CStr, OsStr};
+use std::borrow::Cow;
+use std::ffi::{CStr, CString, OsStr};
 use std::os::raw;
 use std::{fmt, marker, mem, ptr};
-use util::{cstr_cow_from_bytes, ensure_compatible_types};
 
 mod consts;
 
@@ -181,6 +183,25 @@ impl Library {
     where
         P: AsRef<OsStr>,
     {
+        /// Checks for the last byte and avoids allocating if it is zero.
+        ///
+        /// Non-last null bytes still result in an error.
+        fn cstr_cow_from_bytes(slice: &[u8]) -> Result<Cow<'_, CStr>, Error> {
+            Ok(match slice.last() {
+                // Slice out of 0 elements
+                None => Cow::Borrowed(c""),
+                // Slice with trailing 0
+                Some(&0) => Cow::Borrowed(
+                    CStr::from_bytes_with_nul(slice)
+                        .map_err(|source| Error::CreateCStringWithTrailing { source })?,
+                ),
+                // Slice with no trailing 0
+                Some(_) => {
+                    Cow::Owned(CString::new(slice).map_err(|source| Error::CreateCString { source })?)
+                }
+            })
+        }
+
         let filename = match filename {
             None => None,
             Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
@@ -207,12 +228,12 @@ impl Library {
         .map_err(|e| e.unwrap_or(crate::Error::DlOpenUnknown))
     }
 
-    unsafe fn get_impl<T, F>(&self, symbol: &[u8], on_null: F) -> Result<Symbol<T>, crate::Error>
+    unsafe fn get_impl<T, F>(&self, symbol: &CStr, on_null: F) -> Result<Symbol<T>, crate::Error>
     where
         F: FnOnce() -> Result<Symbol<T>, crate::Error>,
     {
         ensure_compatible_types::<T, *mut raw::c_void>()?;
-        let symbol = cstr_cow_from_bytes(symbol)?;
+
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
@@ -243,9 +264,6 @@ impl Library {
 
     /// Get a pointer to a function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
-    /// null terminated `symbol` may help to avoid an allocation.
-    ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
@@ -265,8 +283,7 @@ impl Library {
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
-        extern crate cfg_if;
+    pub unsafe fn get<T>(&self, symbol: &CStr) -> Result<Symbol<T>, crate::Error> {
         cfg_if::cfg_if! {
             // These targets are known to have MT-safe `dlerror`.
             if #[cfg(any(
@@ -290,9 +307,6 @@ impl Library {
 
     /// Get a pointer to function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
-    /// null terminated `symbol` may help to avoid an allocation.
-    ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
@@ -309,7 +323,7 @@ impl Library {
     /// The implementation of thread-local variables is extremely platform specific and uses of such
     /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     #[inline(always)]
-    pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+    pub unsafe fn get_singlethreaded<T>(&self, symbol: &CStr) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || {
             Ok(Symbol {
                 pointer: ptr::null_mut(),

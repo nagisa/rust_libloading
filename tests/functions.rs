@@ -2,8 +2,8 @@
 extern crate windows_sys;
 
 extern crate libloading;
-use std::os::raw::c_void;
 use libloading::{Library, Symbol};
+use std::os::raw::c_void;
 
 const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
 const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
@@ -40,7 +40,7 @@ fn test_id_u32() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
+        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(c"test_identity_u32").unwrap();
         assert_eq!(42, f(42));
     }
 }
@@ -50,10 +50,10 @@ fn test_try_into_ptr() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
+        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(c"test_identity_u32").unwrap();
         let ptr: *mut c_void = f.try_as_raw_ptr().unwrap();
         assert!(!ptr.is_null());
-        let ptr_casted : extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
+        let ptr_casted: extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
         assert_eq!(42, ptr_casted(42));
     }
 }
@@ -72,7 +72,7 @@ fn test_id_struct() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
+        let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(c"test_identity_struct").unwrap();
         assert_eq!(
             S {
                 a: 1,
@@ -91,17 +91,6 @@ fn test_id_struct() {
 }
 
 #[test]
-fn test_0_no_0() {
-    make_helpers();
-    unsafe {
-        let lib = Library::new(lib_path()).unwrap();
-        let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
-        let f2: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct").unwrap();
-        assert_eq!(*f, *f2);
-    }
-}
-
-#[test]
 fn wrong_name_fails() {
     unsafe {
         Library::new("target/this_location_is_definitely_non existent:^~")
@@ -115,20 +104,7 @@ fn missing_symbol_fails() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        lib.get::<*mut ()>(b"test_does_not_exist").err().unwrap();
-        lib.get::<*mut ()>(b"test_does_not_exist\0").err().unwrap();
-    }
-}
-
-#[test]
-fn interior_null_fails() {
-    make_helpers();
-    unsafe {
-        let lib = Library::new(lib_path()).unwrap();
-        lib.get::<*mut ()>(b"test_does\0_not_exist").err().unwrap();
-        lib.get::<*mut ()>(b"test\0_does_not_exist\0")
-            .err()
-            .unwrap();
+        lib.get::<*mut ()>(c"test_does_not_exist").err().unwrap();
     }
 }
 
@@ -137,7 +113,7 @@ fn test_incompatible_type() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        assert!(match lib.get::<()>(b"test_identity_u32\0") {
+        assert!(match lib.get::<()>(c"test_identity_u32") {
             Err(libloading::Error::IncompatibleSize) => true,
             _ => false,
         })
@@ -148,7 +124,7 @@ fn test_incompatible_type() {
 fn test_incompatible_type_named_fn() {
     make_helpers();
     unsafe fn get<'a, T>(l: &'a Library, _: T) -> Result<Symbol<'a, T>, libloading::Error> {
-        l.get::<T>(b"test_identity_u32\0")
+        l.get::<T>(c"test_identity_u32")
     }
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
@@ -164,10 +140,9 @@ fn test_static_u32() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        let var: Symbol<*mut u32> = lib.get(b"TEST_STATIC_U32\0").unwrap();
+        let var: Symbol<*mut u32> = lib.get(c"TEST_STATIC_U32").unwrap();
         **var = 42;
-        let help: Symbol<unsafe extern "C" fn() -> u32> =
-            lib.get(b"test_get_static_u32\0").unwrap();
+        let help: Symbol<unsafe extern "C" fn() -> u32> = lib.get(c"test_get_static_u32").unwrap();
         assert_eq!(42, help());
     }
 }
@@ -177,10 +152,10 @@ fn test_static_ptr() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
-        let var: Symbol<*mut *mut ()> = lib.get(b"TEST_STATIC_PTR\0").unwrap();
+        let var: Symbol<*mut *mut ()> = lib.get(c"TEST_STATIC_PTR").unwrap();
         **var = *var as *mut _;
         let works: Symbol<unsafe extern "C" fn() -> bool> =
-            lib.get(b"test_check_static_ptr\0").unwrap();
+            lib.get(c"test_check_static_ptr").unwrap();
         assert!(works());
     }
 }
@@ -201,7 +176,7 @@ fn manual_close_many_times() {
                 for _ in 0..10000 {
                     let lib = Library::new(lib_path()).expect("open library");
                     let _: Symbol<unsafe extern "C" fn(u32) -> u32> =
-                        lib.get(b"test_identity_u32").expect("get fn");
+                        lib.get(c"test_identity_u32").expect("get fn");
                     lib.close().expect("close is successful");
                 }
             })
@@ -223,12 +198,12 @@ fn library_this_get() {
         let this = Library::this();
         // Library we loaded in `_lib` (should be RTLD_LOCAL).
         assert!(this
-            .get::<unsafe extern "C" fn()>(b"test_identity_u32")
+            .get::<unsafe extern "C" fn()>(c"test_identity_u32")
             .is_err());
         // Something obscure from libc...
         // Cygwin behaves like Windows so ignore it.
         #[cfg(not(target_os = "cygwin"))]
-        assert!(this.get::<unsafe extern "C" fn()>(b"freopen").is_ok());
+        assert!(this.get::<unsafe extern "C" fn()>(c"freopen").is_ok());
     }
 }
 
@@ -244,10 +219,10 @@ fn library_this() {
         // SAFE: functions are never called.
         // Library we loaded in `_lib`.
         assert!(this
-            .get::<unsafe extern "C" fn()>(b"test_identity_u32")
+            .get::<unsafe extern "C" fn()>(c"test_identity_u32")
             .is_err());
         // Something "obscure" from kernel32...
-        assert!(this.get::<unsafe extern "C" fn()>(b"GetLastError").is_err());
+        assert!(this.get::<unsafe extern "C" fn()>(c"GetLastError").is_err());
     }
 }
 
@@ -259,21 +234,7 @@ fn works_getlasterror() {
 
     unsafe {
         let lib = Library::new("kernel32.dll").unwrap();
-        let gle: Symbol<unsafe extern "system" fn() -> u32> = lib.get(b"GetLastError").unwrap();
-        SetLastError(42);
-        assert_eq!(GetLastError(), gle())
-    }
-}
-
-#[cfg(windows)]
-#[test]
-fn works_getlasterror0() {
-    use libloading::os::windows::{Library, Symbol};
-    use windows_sys::Win32::Foundation::{GetLastError, SetLastError};
-
-    unsafe {
-        let lib = Library::new("kernel32.dll").unwrap();
-        let gle: Symbol<unsafe extern "system" fn() -> u32> = lib.get(b"GetLastError\0").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> u32> = lib.get(c"GetLastError").unwrap();
         SetLastError(42);
         assert_eq!(GetLastError(), gle())
     }

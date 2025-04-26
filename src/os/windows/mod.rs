@@ -15,9 +15,9 @@ mod windows_imports {
     windows_targets::link!("kernel32.dll" "system" fn GetProcAddress(module: HMODULE, procname: *const u8) -> FARPROC);
 }
 
+use crate::util::ensure_compatible_types;
 use self::windows_imports::*;
-use util::{ensure_compatible_types, cstr_cow_from_bytes};
-use std::ffi::{OsStr, OsString};
+use std::ffi::{CStr, OsStr, OsString};
 use std::{fmt, io, marker, mem, ptr};
 use std::os::raw;
 
@@ -173,18 +173,15 @@ impl Library {
 
     /// Get a pointer to a function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with the exception of the last byte. A null
-    /// terminated `symbol` may avoid a string allocation in some cases.
-    ///
     /// Symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
     /// # Safety
     ///
     /// Users of this API must specify the correct type of the function or variable loaded.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+    pub unsafe fn get<T>(&self, symbol: &CStr) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
-        let symbol = cstr_cow_from_bytes(symbol)?;
+
         with_get_last_error(|source| crate::Error::GetProcAddress { source }, || {
             let symbol = GetProcAddress(self.0, symbol.as_ptr().cast());
             if symbol.is_none() {
