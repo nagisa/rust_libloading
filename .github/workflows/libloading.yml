@@ -40,12 +40,12 @@ jobs:
       matrix:
         rust_toolchain: [nightly, stable]
         rust_target:
-          - x86_64-pc-windows-gnu
+          - x86_64-pc-windows-gnullvm
           - i686-pc-windows-gnu
         include:
-          - rust_target: x86_64-pc-windows-gnu
-            mingw_path: C:/msys64/mingw64/bin
-            package: mingw-w64-x86_64-gcc
+          - rust_target: x86_64-pc-windows-gnullvm
+            mingw_path: C:/msys64/clang64/bin
+            package: mingw-w64-clang-x86_64-clang
           - rust_target: i686-pc-windows-gnu
             mingw_path: C:/msys64/mingw32/bin
             package: mingw-w64-i686-gcc
