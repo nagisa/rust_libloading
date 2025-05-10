@@ -54,8 +54,7 @@ mod posix {
 
 #[cfg(any(not(libloading_docs), unix))]
 mod posix {
-    extern crate cfg_if;
-    use self::cfg_if::cfg_if;
+    use cfg_if::cfg_if;
     use super::c_int;
     cfg_if! {
         if #[cfg(target_os = "haiku")] {
