@@ -281,6 +281,17 @@ fn works_getlasterror0() {
 
 #[cfg(windows)]
 #[test]
+fn works_pin_module() {
+    use libloading::os::windows::Library;
+
+    unsafe {
+        let lib = Library::new("kernel32.dll").unwrap();
+        lib.pin().unwrap();
+    }
+}
+
+#[cfg(windows)]
+#[test]
 fn library_open_already_loaded() {
     use libloading::os::windows::Library;
 
