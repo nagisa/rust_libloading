@@ -183,6 +183,10 @@ impl Library {
                 || {
                     // Make sure no winapi calls as a result of drop happen inside this closure, because
                     // otherwise that might change the return value of the GetLastError.
+
+                    // We use our cached module handle of this `Library` instead of the module name. This works
+                    // if we also pass the flag `GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS` because on Windows, module handles
+                    // are the loaded base address of the module.
                     let result = GetModuleHandleExW(
                         GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
                         self.0 as *const u16,
