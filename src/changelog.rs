@@ -1,5 +1,11 @@
 //! The change log.
 
+/// Release 0.8.8 (2025-05-27)
+///
+/// ## Non-breaking changes
+///
+/// Add `os::window::Library::pin`.
+pub mod r0_8_8 {}
 
 /// Release 0.8.7 (2025-04-26)
 ///
