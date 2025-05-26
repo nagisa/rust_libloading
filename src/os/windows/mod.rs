@@ -182,7 +182,7 @@ impl Library {
     pub fn pin(&self) -> Result<(), crate::Error> {
         const GET_MODULE_HANDLE_EX_FLAG_PIN: u32 = 0x1;
         const GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS: u32 = 0x4;
-        let ret = unsafe {
+        unsafe {
             let mut handle: HMODULE = 0;
             with_get_last_error(
                 |source| crate::Error::GetModuleHandleExW { source },
@@ -206,9 +206,7 @@ impl Library {
                 },
             )
             .map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
-        };
-
-        ret
+        }
     }
 
     /// Get a pointer to a function or static variable by symbol name.
