@@ -172,6 +172,12 @@ impl Library {
     }
 
     /// Attempts to pin the module represented by the current `Library` into memory.
+    /// 
+    /// Calls `GetModuleHandleExW` with the flag `GET_MODULE_HANDLE_EX_FLAG_PIN` to pin the module.
+    /// See the [MSDN documentation][msdn] for more information.
+    /// 
+    /// [msdn]: https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
+    /// 
     /// If successful, the module will remain in memory regardless of the refcount for this `Library`
     pub fn pin(&self) -> Result<(), crate::Error> {
         const GET_MODULE_HANDLE_EX_FLAG_PIN: u32 = 0x1;
