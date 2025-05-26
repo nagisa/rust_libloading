@@ -171,6 +171,44 @@ impl Library {
         ret
     }
 
+    /// Attempts to pin the module represented by the current `Library` into memory.
+    /// 
+    /// Calls `GetModuleHandleExW` with the flag `GET_MODULE_HANDLE_EX_FLAG_PIN` to pin the module.
+    /// See the [MSDN documentation][msdn] for more information.
+    /// 
+    /// [msdn]: https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
+    /// 
+    /// If successful, the module will remain in memory regardless of the refcount for this `Library`
+    pub fn pin(&self) -> Result<(), crate::Error> {
+        const GET_MODULE_HANDLE_EX_FLAG_PIN: u32 = 0x1;
+        const GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS: u32 = 0x4;
+        unsafe {
+            let mut handle: HMODULE = 0;
+            with_get_last_error(
+                |source| crate::Error::GetModuleHandleExW { source },
+                || {
+                    // Make sure no winapi calls as a result of drop happen inside this closure, because
+                    // otherwise that might change the return value of the GetLastError.
+
+                    // We use our cached module handle of this `Library` instead of the module name. This works
+                    // if we also pass the flag `GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS` because on Windows, module handles
+                    // are the loaded base address of the module.
+                    let result = GetModuleHandleExW(
+                        GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                        self.0 as *const u16,
+                        &mut handle,
+                    );
+                    if result == 0 {
+                        None
+                    } else {
+                        Some(())
+                    }
+                },
+            )
+            .map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
+        }
+    }
+
     /// Get a pointer to a function or static variable by symbol name.
     ///
     /// The `symbol` may not contain any null bytes, with the exception of the last byte. A null
