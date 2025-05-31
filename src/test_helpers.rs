@@ -33,5 +33,5 @@ pub unsafe extern "C" fn test_get_static_u32() -> u32 {
 
 #[no_mangle]
 pub unsafe extern "C" fn test_check_static_ptr() -> bool {
-    TEST_STATIC_PTR == (&mut TEST_STATIC_PTR as *mut *mut _ as *mut _)
+    TEST_STATIC_PTR == (&raw mut TEST_STATIC_PTR as *mut *mut _ as *mut _)
 }

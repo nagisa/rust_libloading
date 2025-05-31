@@ -5,7 +5,7 @@ use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
 use super::Error;
-use std::ffi::OsStr;
+use std::ffi::{CStr, OsStr};
 use std::fmt;
 use std::marker;
 use std::ops;
@@ -87,9 +87,6 @@ impl Library {
 
     /// Get a pointer to a function or static variable by symbol name.
     ///
-    /// The `symbol` may not contain any null bytes, with the exception of the last byte. Providing a
-    /// null-terminated `symbol` may help to avoid an allocation.
-    ///
     /// The symbol is interpreted as-is; no mangling is done. This means that symbols like `x::y` are
     /// most likely invalid.
     ///
@@ -130,7 +127,7 @@ impl Library {
     /// # };
     /// unsafe {
     ///     let awesome_function: Symbol<unsafe extern fn(f64) -> f64> =
-    ///         lib.get(b"awesome_function\0").unwrap();
+    ///         lib.get(c"awesome_function").unwrap();
     ///     awesome_function(0.42);
     /// }
     /// ```
@@ -141,11 +138,11 @@ impl Library {
     /// # use ::libloading::{Library, Symbol};
     /// # let lib = unsafe { Library::new("/path/to/awesome.module").unwrap() };
     /// unsafe {
-    ///     let awesome_variable: Symbol<*mut f64> = lib.get(b"awesome_variable\0").unwrap();
+    ///     let awesome_variable: Symbol<*mut f64> = lib.get(c"awesome_variable").unwrap();
     ///     **awesome_variable = 42.0;
     /// };
     /// ```
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, Error> {
+    pub unsafe fn get<T>(&self, symbol: &CStr) -> Result<Symbol<T>, Error> {
         self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
     }
 
@@ -215,7 +212,7 @@ impl<'lib, T> Symbol<'lib, T> {
     /// # use ::libloading::{Library, Symbol};
     /// unsafe {
     ///     let lib = Library::new("/path/to/awesome.module").unwrap();
-    ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol: Symbol<*mut u32> = lib.get(c"symbol").unwrap();
     ///     let symbol = symbol.into_raw();
     /// }
     /// ```
@@ -238,7 +235,7 @@ impl<'lib, T> Symbol<'lib, T> {
     /// # use ::libloading::{Library, Symbol};
     /// unsafe {
     ///     let lib = Library::new("/path/to/awesome.module").unwrap();
-    ///     let symbol: Symbol<*mut u32> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol: Symbol<*mut u32> = lib.get(c"symbol").unwrap();
     ///     let symbol = symbol.into_raw();
     ///     let symbol = Symbol::from_raw(symbol, &lib);
     /// }
@@ -280,7 +277,7 @@ impl<'lib, T> Symbol<'lib, Option<T>> {
     /// # use ::libloading::{Library, Symbol};
     /// unsafe {
     ///     let lib = Library::new("/path/to/awesome.module").unwrap();
-    ///     let symbol: Symbol<Option<*mut u32>> = lib.get(b"symbol\0").unwrap();
+    ///     let symbol: Symbol<Option<*mut u32>> = lib.get(c"symbol").unwrap();
     ///     let symbol: Symbol<*mut u32> = symbol.lift_option().expect("static is not null");
     /// }
     /// ```
