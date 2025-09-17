@@ -15,11 +15,11 @@ categories = ["api-bindings"]
 rust-version = "1.71.0"
 edition = "2015"
 
-[target.'cfg(windows)'.dependencies.windows-targets]
-version = ">=0.48, <0.54"
+[target.'cfg(windows)'.dependencies.windows-link]
+version = "0.2"
 
 [target.'cfg(windows)'.dev-dependencies.windows-sys]
-version = ">=0.52,<0.60"
+version = "0.61"
 features = ["Win32_Foundation"]
 
 [target.'cfg(unix)'.dependencies.cfg-if]
