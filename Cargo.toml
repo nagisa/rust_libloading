@@ -12,7 +12,7 @@ readme = "README.mkd"
 description = "Bindings around the platform's dynamic library loading primitives with greatly improved memory safety."
 keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
-rust-version = "1.56.0"
+rust-version = "1.71.0"
 edition = "2015"
 
 [target.'cfg(windows)'.dependencies.windows-targets]
