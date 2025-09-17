@@ -145,7 +145,7 @@ impl Library {
     ///     **awesome_variable = 42.0;
     /// };
     /// ```
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, Error> {
+    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<'_, T>, Error> {
         self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
     }
 
@@ -317,4 +317,3 @@ impl<T> fmt::Debug for Symbol<'_, T> {
 
 unsafe impl<T: Send> Send for Symbol<'_, T> {}
 unsafe impl<T: Sync> Sync for Symbol<'_, T> {}
-
