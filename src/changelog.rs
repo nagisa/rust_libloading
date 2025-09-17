@@ -1,5 +1,12 @@
 //! The change log.
 
+/// Release 0.8.9 (2025-09-17)
+///
+/// ## Non-breaking changes
+///
+/// Migrate from windows-targets to windows-link for linking Windows API functions.
+pub mod r0_8_9 {}
+
 /// Release 0.8.8 (2025-05-27)
 ///
 /// ## Non-breaking changes
