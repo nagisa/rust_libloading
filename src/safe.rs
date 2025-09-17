@@ -261,7 +261,6 @@ impl<'lib, T> Symbol<'lib, T> {
     /// was loaded from.
     pub unsafe fn try_as_raw_ptr(self) -> Option<*mut raw::c_void> {
         Some(
-            #[allow(unused_unsafe)] // 1.56.0 compat
             unsafe {
                 // SAFE: the calling function has the same soundness invariants as this callee.
                 self.into_raw()
