@@ -2,8 +2,8 @@
 extern crate windows_sys;
 
 extern crate libloading;
-use std::os::raw::c_void;
 use libloading::{Library, Symbol};
+use std::os::raw::c_void;
 
 const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
 const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
@@ -53,7 +53,7 @@ fn test_try_into_ptr() {
         let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
         let ptr: *mut c_void = f.try_as_raw_ptr().unwrap();
         assert!(!ptr.is_null());
-        let ptr_casted : extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
+        let ptr_casted: extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
         assert_eq!(42, ptr_casted(42));
     }
 }
