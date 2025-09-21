@@ -82,7 +82,7 @@ jobs:
           $env:PATH = "C:\msys64\usr\bin\;$env:PATH"
           cargo test --target x86_64-pc-cygwin -Zbuild-std
         env:
-          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: x86_64-pc-msys-gcc.exe
+          CARGO_TARGET_X86_64_PC_CYGWIN_LINKER: x86_64-pc-cygwin-gcc.exe
 
   bare-cross-build:
     runs-on: ubuntu-latest
