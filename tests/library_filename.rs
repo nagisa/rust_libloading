@@ -1,4 +1,6 @@
 extern crate libloading;
+
+#[cfg(feature = "std")]
 use libloading::library_filename;
 use std::path::Path;
 
@@ -10,6 +12,7 @@ const EXPECTED: &str = "libaudioengine.so";
 const EXPECTED: &str = "libaudioengine.dylib";
 
 #[test]
+#[cfg(feature = "std")]
 fn test_library_filename() {
     let name = "audioengine";
     let resolved = library_filename(name);

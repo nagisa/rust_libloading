@@ -2,6 +2,7 @@
 extern crate windows_sys;
 
 extern crate libloading;
+
 use libloading::{Library, Symbol};
 use std::os::raw::c_void;
 
@@ -15,6 +16,13 @@ fn lib_path() -> std::path::PathBuf {
     ]
     .iter()
     .collect()
+}
+
+fn lib_path_utf8() -> String {
+    lib_path()
+        .to_str()
+        .expect("lib_path not string")
+        .to_string()
 }
 
 fn make_helpers() {
@@ -36,6 +44,7 @@ fn make_helpers() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_id_u32() {
     make_helpers();
     unsafe {
@@ -46,10 +55,34 @@ fn test_id_u32() {
 }
 
 #[test]
+fn test_id_u32_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
+        assert_eq!(42, f(42));
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn test_try_into_ptr() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
+        let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
+        let ptr: *mut c_void = f.try_as_raw_ptr().unwrap();
+        assert!(!ptr.is_null());
+        let ptr_casted: extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
+        assert_eq!(42, ptr_casted(42));
+    }
+}
+
+#[test]
+fn test_try_into_ptr_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
         let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
         let ptr: *mut c_void = f.try_as_raw_ptr().unwrap();
         assert!(!ptr.is_null());
@@ -68,6 +101,7 @@ struct S {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_id_struct() {
     make_helpers();
     unsafe {
@@ -91,10 +125,48 @@ fn test_id_struct() {
 }
 
 #[test]
+fn test_id_struct_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
+        assert_eq!(
+            S {
+                a: 1,
+                b: 2,
+                c: 3,
+                d: 4
+            },
+            f(S {
+                a: 1,
+                b: 2,
+                c: 3,
+                d: 4
+            })
+        );
+    }
+}
+
+#[test]
+#[allow(unpredictable_function_pointer_comparisons)]
+#[cfg(feature = "std")]
 fn test_0_no_0() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
+        let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
+        let f2: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct").unwrap();
+
+        assert_eq!(*f, *f2);
+    }
+}
+
+#[test]
+#[allow(unpredictable_function_pointer_comparisons)]
+fn test_0_no_0_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
         let f: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct\0").unwrap();
         let f2: Symbol<unsafe extern "C" fn(S) -> S> = lib.get(b"test_identity_struct").unwrap();
         assert_eq!(*f, *f2);
@@ -102,6 +174,7 @@ fn test_0_no_0() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn wrong_name_fails() {
     unsafe {
         Library::new("target/this_location_is_definitely_non existent:^~")
@@ -111,6 +184,16 @@ fn wrong_name_fails() {
 }
 
 #[test]
+fn wrong_name_fails_utf8() {
+    unsafe {
+        Library::new_utf8("target/this_location_is_definitely_non existent:^~")
+            .err()
+            .unwrap();
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn missing_symbol_fails() {
     make_helpers();
     unsafe {
@@ -121,6 +204,17 @@ fn missing_symbol_fails() {
 }
 
 #[test]
+fn missing_symbol_fails_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        lib.get::<*mut ()>(b"test_does_not_exist").err().unwrap();
+        lib.get::<*mut ()>(b"test_does_not_exist\0").err().unwrap();
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn interior_null_fails() {
     make_helpers();
     unsafe {
@@ -133,6 +227,19 @@ fn interior_null_fails() {
 }
 
 #[test]
+fn interior_null_fails_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        lib.get::<*mut ()>(b"test_does\0_not_exist").err().unwrap();
+        lib.get::<*mut ()>(b"test\0_does_not_exist\0")
+            .err()
+            .unwrap();
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn test_incompatible_type() {
     make_helpers();
     unsafe {
@@ -145,6 +252,19 @@ fn test_incompatible_type() {
 }
 
 #[test]
+fn test_incompatible_type_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        assert!(match lib.get::<()>(b"test_identity_u32\0") {
+            Err(libloading::Error::IncompatibleSize) => true,
+            _ => false,
+        })
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn test_incompatible_type_named_fn() {
     make_helpers();
     unsafe fn get<'a, T>(l: &'a Library, _: T) -> Result<Symbol<'a, T>, libloading::Error> {
@@ -160,6 +280,22 @@ fn test_incompatible_type_named_fn() {
 }
 
 #[test]
+fn test_incompatible_type_named_fn_utf8() {
+    make_helpers();
+    unsafe fn get<'a, T>(l: &'a Library, _: T) -> Result<Symbol<'a, T>, libloading::Error> {
+        l.get::<T>(b"test_identity_u32\0")
+    }
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        assert!(match get(&lib, test_incompatible_type_named_fn_utf8) {
+            Err(libloading::Error::IncompatibleSize) => true,
+            _ => false,
+        })
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn test_static_u32() {
     make_helpers();
     unsafe {
@@ -173,10 +309,37 @@ fn test_static_u32() {
 }
 
 #[test]
+fn test_static_u32_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        let var: Symbol<*mut u32> = lib.get(b"TEST_STATIC_U32\0").unwrap();
+        **var = 42;
+        let help: Symbol<unsafe extern "C" fn() -> u32> =
+            lib.get(b"test_get_static_u32\0").unwrap();
+        assert_eq!(42, help());
+    }
+}
+
+#[test]
+#[cfg(feature = "std")]
 fn test_static_ptr() {
     make_helpers();
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
+        let var: Symbol<*mut *mut ()> = lib.get(b"TEST_STATIC_PTR\0").unwrap();
+        **var = *var as *mut _;
+        let works: Symbol<unsafe extern "C" fn() -> bool> =
+            lib.get(b"test_check_static_ptr\0").unwrap();
+        assert!(works());
+    }
+}
+
+#[test]
+fn test_static_ptr_utf8() {
+    make_helpers();
+    unsafe {
+        let lib = Library::new_utf8(lib_path_utf8()).unwrap();
         let var: Symbol<*mut *mut ()> = lib.get(b"TEST_STATIC_PTR\0").unwrap();
         **var = *var as *mut _;
         let works: Symbol<unsafe extern "C" fn() -> bool> =
@@ -193,6 +356,7 @@ fn test_static_ptr() {
 #[cfg(not(all(target_arch = "x86", target_os = "windows", target_env = "gnu")))]
 // Cygwin returns errors on `close`.
 #[cfg(not(target_os = "cygwin"))]
+#[cfg(feature = "std")]
 fn manual_close_many_times() {
     make_helpers();
     let join_handles: Vec<_> = (0..16)
@@ -212,7 +376,32 @@ fn manual_close_many_times() {
     }
 }
 
+#[test]
+// See above for why
+#[cfg(not(all(target_arch = "x86", target_os = "windows", target_env = "gnu")))]
+// Cygwin returns errors on `close`.
+#[cfg(not(target_os = "cygwin"))]
+fn manual_close_many_times_utf8() {
+    make_helpers();
+    let join_handles: Vec<_> = (0..16)
+        .map(|_| {
+            std::thread::spawn(|| unsafe {
+                for _ in 0..10000 {
+                    let lib = Library::new_utf8(lib_path_utf8()).expect("open library");
+                    let _: Symbol<unsafe extern "C" fn(u32) -> u32> =
+                        lib.get(b"test_identity_u32").expect("get fn");
+                    lib.close().expect("close is successful");
+                }
+            })
+        })
+        .collect();
+    for handle in join_handles {
+        handle.join().expect("thread should succeed");
+    }
+}
+
 #[cfg(unix)]
+#[cfg(feature = "std")]
 #[test]
 fn library_this_get() {
     use libloading::os::unix::Library;
@@ -232,7 +421,28 @@ fn library_this_get() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn library_this_get_utf8() {
+    use libloading::os::unix::Library;
+    make_helpers();
+    // SAFE: functions are never called
+    unsafe {
+        let _lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        let this = Library::this();
+        // Library we loaded in `_lib` (should be RTLD_LOCAL).
+        assert!(this
+            .get::<unsafe extern "C" fn()>(b"test_identity_u32")
+            .is_err());
+        // Something obscure from libc...
+        // Cygwin behaves like Windows so ignore it.
+        #[cfg(not(target_os = "cygwin"))]
+        assert!(this.get::<unsafe extern "C" fn()>(b"freopen").is_ok());
+    }
+}
+
 #[cfg(windows)]
+#[cfg(feature = "std")]
 #[test]
 fn library_this() {
     use libloading::os::windows::Library;
@@ -253,6 +463,26 @@ fn library_this() {
 
 #[cfg(windows)]
 #[test]
+fn library_this_utf8() {
+    use libloading::os::windows::Library;
+    make_helpers();
+    unsafe {
+        // SAFE: well-known library without initialisers is loaded.
+        let _lib = Library::new_utf8(lib_path_utf8()).unwrap();
+        let this = Library::this().expect("this library");
+        // SAFE: functions are never called.
+        // Library we loaded in `_lib`.
+        assert!(this
+            .get::<unsafe extern "C" fn()>(b"test_identity_u32")
+            .is_err());
+        // Something "obscure" from kernel32...
+        assert!(this.get::<unsafe extern "C" fn()>(b"GetLastError").is_err());
+    }
+}
+
+#[cfg(windows)]
+#[cfg(feature = "std")]
+#[test]
 fn works_getlasterror() {
     use libloading::os::windows::{Library, Symbol};
     use windows_sys::Win32::Foundation::{GetLastError, SetLastError};
@@ -266,6 +496,21 @@ fn works_getlasterror() {
 }
 
 #[cfg(windows)]
+#[test]
+fn works_getlasterror_utf8() {
+    use libloading::os::windows::{Library, Symbol};
+    use windows_sys::Win32::Foundation::{GetLastError, SetLastError};
+
+    unsafe {
+        let lib = Library::new_utf8("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> u32> = lib.get(b"GetLastError").unwrap();
+        SetLastError(42);
+        assert_eq!(GetLastError(), gle())
+    }
+}
+
+#[cfg(windows)]
+#[cfg(feature = "std")]
 #[test]
 fn works_getlasterror0() {
     use libloading::os::windows::{Library, Symbol};
@@ -281,6 +526,21 @@ fn works_getlasterror0() {
 
 #[cfg(windows)]
 #[test]
+fn works_getlasterror0_utf8() {
+    use libloading::os::windows::{Library, Symbol};
+    use windows_sys::Win32::Foundation::{GetLastError, SetLastError};
+
+    unsafe {
+        let lib = Library::new_utf8("kernel32.dll").unwrap();
+        let gle: Symbol<unsafe extern "system" fn() -> u32> = lib.get(b"GetLastError\0").unwrap();
+        SetLastError(42);
+        assert_eq!(GetLastError(), gle())
+    }
+}
+
+#[cfg(windows)]
+#[cfg(feature = "std")]
+#[test]
 fn works_pin_module() {
     use libloading::os::windows::Library;
 
@@ -291,6 +551,18 @@ fn works_pin_module() {
 }
 
 #[cfg(windows)]
+#[test]
+fn works_pin_module_utf8() {
+    use libloading::os::windows::Library;
+
+    unsafe {
+        let lib = Library::new_utf8("kernel32.dll").unwrap();
+        lib.pin().unwrap();
+    }
+}
+
+#[cfg(windows)]
+#[cfg(feature = "std")]
 #[test]
 fn library_open_already_loaded() {
     use libloading::os::windows::Library;
@@ -308,5 +580,26 @@ fn library_open_already_loaded() {
         let _lib = Library::new(LIBPATH).unwrap();
         // Loaded now.
         assert!(Library::open_already_loaded(LIBPATH).is_ok());
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn library_open_already_loaded_utf8() {
+    use libloading::os::windows::Library;
+
+    // Present on Windows systems and NOT used by any other tests to prevent races.
+    const LIBPATH: &str = "Msftedit.dll";
+
+    // Not loaded yet.
+    assert!(match Library::open_already_loaded_utf8(LIBPATH) {
+        Err(libloading::Error::GetModuleHandleExW { .. }) => true,
+        _ => false,
+    });
+
+    unsafe {
+        let _lib = Library::new_utf8(LIBPATH).unwrap();
+        // Loaded now.
+        assert!(Library::open_already_loaded_utf8(LIBPATH).is_ok());
     }
 }

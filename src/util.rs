@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-use std::ffi::{CStr, CString};
-use std::os::raw;
+use alloc::borrow::Cow;
+use alloc::ffi::CString;
+use core::ffi::CStr;
 
 use crate::Error;
 
@@ -8,7 +8,7 @@ use crate::Error;
 ///
 /// Non-last null bytes still result in an error.
 pub(crate) fn cstr_cow_from_bytes(slice: &[u8]) -> Result<Cow<'_, CStr>, Error> {
-    static ZERO: raw::c_char = 0;
+    static ZERO: core::ffi::c_char = 0;
     Ok(match slice.last() {
         // Slice out of 0 elements
         None => unsafe { Cow::Borrowed(CStr::from_ptr(&ZERO)) },
@@ -26,7 +26,7 @@ pub(crate) fn cstr_cow_from_bytes(slice: &[u8]) -> Result<Cow<'_, CStr>, Error> 
 
 #[inline]
 pub(crate) fn ensure_compatible_types<T, E>() -> Result<(), Error> {
-    if ::std::mem::size_of::<T>() != ::std::mem::size_of::<E>() {
+    if size_of::<T>() != size_of::<E>() {
         Err(Error::IncompatibleSize)
     } else {
         Ok(())

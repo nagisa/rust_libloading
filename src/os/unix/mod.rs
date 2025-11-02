@@ -4,14 +4,21 @@
 mod unix_imports {}
 #[cfg(any(not(libloading_docs), unix))]
 mod unix_imports {
+    #[cfg(feature = "std")]
     pub(super) use std::os::unix::ffi::OsStrExt;
 }
 
 pub use self::consts::*;
+
+#[cfg(feature = "std")]
 use self::unix_imports::*;
-use std::ffi::{CStr, OsStr};
-use std::os::raw;
-use std::{fmt, marker, mem, ptr};
+
+use core::ffi::CStr;
+#[cfg(feature = "std")]
+use std::ffi::OsStr;
+
+use core::ptr::null;
+use core::{fmt, marker, mem, ptr};
 use util::{cstr_cow_from_bytes, ensure_compatible_types};
 
 mod consts;
@@ -88,7 +95,7 @@ where
 
 /// A platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library {
-    handle: *mut raw::c_void,
+    handle: *mut core::ffi::c_void,
 }
 
 unsafe impl Send for Library {}
@@ -131,8 +138,65 @@ impl Library {
     /// termination routines contained within the library is safe as well. These routines may be
     /// executed when the library is unloaded.
     #[inline]
+    #[cfg(feature = "std")]
     pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_LAZY | RTLD_LOCAL)
+    }
+
+    /// Find and eagerly load a shared library (module).
+    ///
+    /// If the `filename` contains a [path separator], the `filename` is interpreted as a `path` to
+    /// a file. Otherwise, platform-specific algorithms are employed to find a library with a
+    /// matching file name.
+    ///
+    /// This function will temporarily copy `filename` unless it is 0 terminated.
+    ///
+    /// If the `filename` contains 0 bytes other than the last character then this function will error
+    ///
+    /// This is equivalent to <code>[Library::open](filename, [RTLD_LAZY] | [RTLD_LOCAL])</code>.
+    ///
+    /// [path separator]: std::path::MAIN_SEPARATOR
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded, initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
+    pub unsafe fn new_utf8(filename: impl AsRef<str>) -> Result<Library, crate::Error> {
+        Library::open_utf8(filename.as_ref(), RTLD_LAZY | RTLD_LOCAL)
+    }
+
+    /// Find and eagerly load a shared library (module).
+    ///
+    /// If the `filename` contains a [path separator], the `filename` is interpreted as a `path` to
+    /// a file. Otherwise, platform-specific algorithms are employed to find a library with a
+    /// matching file name.
+    ///
+    /// This function will temporarily copy `filename` unless it last element is 0.
+    ///
+    /// If the `filename` contains 0 bytes other than the last element then this function will error
+    ///
+    /// This is equivalent to <code>[Library::open](filename, [RTLD_LAZY] | [RTLD_LOCAL])</code>.
+    ///
+    /// [path separator]: std::path::MAIN_SEPARATOR
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded, initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
+    pub unsafe fn new_raw(filename: &[u8]) -> Result<Library, crate::Error> {
+        Library::open_raw(filename, RTLD_LAZY | RTLD_LOCAL)
     }
 
     /// Load the `Library` representing the current executable.
@@ -156,7 +220,7 @@ impl Library {
         unsafe {
             // SAFE: this does not load any new shared library images, no danger in it executing
             // initialiser routines.
-            Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
+            Library::open_char_ptr(null(), RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
         }
     }
 
@@ -177,25 +241,96 @@ impl Library {
     /// Additionally, the callers of this function must also ensure that execution of the
     /// termination routines contained within the library is safe as well. These routines may be
     /// executed when the library is unloaded.
-    pub unsafe fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
+    #[cfg(feature = "std")]
+    pub unsafe fn open<P>(
+        filename: Option<P>,
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error>
     where
         P: AsRef<OsStr>,
     {
+        //TODO Why is this an option?, we have Library::this?
         let filename = match filename {
             None => None,
             Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
         };
+
+        let result = Library::open_char_ptr(
+            match filename {
+                None => null(),
+                Some(ref f) => f.as_ptr(),
+            },
+            flags,
+        );
+
+        drop(filename);
+        result
+    }
+
+    /// Find and load an executable object file (shared library).
+    ///
+    /// This function will copy the filename if it does not end with a terminating 0 character.
+    ///
+    /// This function will fail if the filename contains a 0 character other than the last character.
+    ///
+    /// Corresponds to `dlopen(filename, flags)`.
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded, initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
+    pub unsafe fn open_utf8(
+        filename: impl AsRef<str>,
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error> {
+        Library::open_raw(filename.as_ref().as_bytes(), flags)
+    }
+
+    /// Find and load an executable object file (shared library).
+    ///
+    /// This function will copy the filename if the last element is not a 0 byte.
+    ///
+    /// This function will fail if the filename contains a 0 byte other than the last element.
+    ///
+    /// Corresponds to `dlopen(filename, flags)`.
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded, initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
+    pub unsafe fn open_raw(
+        filename: &[u8],
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error> {
+        let filename = cstr_cow_from_bytes(filename)?;
+        let res = Library::open_char_ptr(filename.as_ptr(), flags);
+        drop(filename);
+        res
+    }
+
+    /// private helper to call dlopen+dlerror once we de-tangled the string into a raw pointer to a 0 terminated utf-8 string.
+    /// caller must ensure that the string is actually 0 terminated.
+    unsafe fn open_char_ptr(
+        filename: *const core::ffi::c_char,
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error> {
         with_dlerror(
             move || {
-                let result = dlopen(
-                    match filename {
-                        None => ptr::null(),
-                        Some(ref f) => f.as_ptr(),
-                    },
-                    flags,
-                );
+                let result = dlopen(filename, flags);
+
                 // ensure filename lives until dlopen completes
-                drop(filename);
                 if result.is_null() {
                     None
                 } else {
@@ -211,7 +346,7 @@ impl Library {
     where
         F: FnOnce() -> Result<Symbol<T>, crate::Error>,
     {
-        ensure_compatible_types::<T, *mut raw::c_void>()?;
+        ensure_compatible_types::<T, *mut core::ffi::c_void>()?;
         let symbol = cstr_cow_from_bytes(symbol)?;
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
@@ -322,7 +457,7 @@ impl Library {
     ///
     /// The handle returned by this function shall be usable with APIs which accept handles
     /// as returned by `dlopen`.
-    pub fn into_raw(self) -> *mut raw::c_void {
+    pub fn into_raw(self) -> *mut core::ffi::c_void {
         let handle = self.handle;
         mem::forget(self);
         handle
@@ -335,7 +470,7 @@ impl Library {
     /// The pointer shall be a result of a successful call of the `dlopen`-family of functions or a
     /// pointer previously returned by `Library::into_raw` call. It must be valid to call `dlclose`
     /// with this pointer as an argument.
-    pub unsafe fn from_raw(handle: *mut raw::c_void) -> Library {
+    pub unsafe fn from_raw(handle: *mut core::ffi::c_void) -> Library {
         Library { handle }
     }
 
@@ -364,7 +499,7 @@ impl Library {
         // While the library is not free'd yet in case of an error, there is no reason to try
         // dropping it again, because all that will do is try calling `dlclose` again. only
         // this time it would ignore the return result, which we already seen failing…
-        std::mem::forget(self);
+        mem::forget(self);
         result
     }
 }
@@ -379,7 +514,7 @@ impl Drop for Library {
 
 impl fmt::Debug for Library {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("Library@{:p}", self.handle))
+        f.write_fmt(format_args!("Library@{:p}", self.handle))
     }
 }
 
@@ -388,19 +523,19 @@ impl fmt::Debug for Library {
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure that the
 /// `Symbol` does not outlive the `Library` it comes from.
 pub struct Symbol<T> {
-    pointer: *mut raw::c_void,
+    pointer: *mut core::ffi::c_void,
     pd: marker::PhantomData<T>,
 }
 
 impl<T> Symbol<T> {
     /// Convert the loaded `Symbol` into a raw pointer.
-    pub fn into_raw(self) -> *mut raw::c_void {
+    pub fn into_raw(self) -> *mut core::ffi::c_void {
         self.pointer
     }
 
     /// Convert the loaded `Symbol` into a raw pointer.
     /// For unix this does the same as into_raw.
-    pub fn as_raw_ptr(self) -> *mut raw::c_void {
+    pub fn as_raw_ptr(self) -> *mut core::ffi::c_void {
         self.pointer
     }
 }
@@ -428,7 +563,7 @@ impl<T> Clone for Symbol<T> {
     }
 }
 
-impl<T> ::std::ops::Deref for Symbol<T> {
+impl<T> core::ops::Deref for Symbol<T> {
     type Target = T;
     fn deref(&self) -> &T {
         unsafe {
@@ -445,13 +580,13 @@ impl<T> fmt::Debug for Symbol<T> {
             if dladdr(self.pointer, info.as_mut_ptr()) != 0 {
                 let info = info.assume_init();
                 if info.dli_sname.is_null() {
-                    f.write_str(&format!(
+                    f.write_fmt(format_args!(
                         "Symbol@{:p} from {:?}",
                         self.pointer,
                         CStr::from_ptr(info.dli_fname)
                     ))
                 } else {
-                    f.write_str(&format!(
+                    f.write_fmt(format_args!(
                         "Symbol {:?}@{:p} from {:?}",
                         CStr::from_ptr(info.dli_sname),
                         self.pointer,
@@ -459,7 +594,7 @@ impl<T> fmt::Debug for Symbol<T> {
                     ))
                 }
             } else {
-                f.write_str(&format!("Symbol@{:p}", self.pointer))
+                f.write_fmt(format_args!("Symbol@{:p}", self.pointer))
             }
         }
     }
@@ -469,17 +604,23 @@ impl<T> fmt::Debug for Symbol<T> {
 #[cfg_attr(any(target_os = "linux", target_os = "android"), link(name = "dl"))]
 #[cfg_attr(any(target_os = "freebsd", target_os = "dragonfly"), link(name = "c"))]
 extern "C" {
-    fn dlopen(filename: *const raw::c_char, flags: raw::c_int) -> *mut raw::c_void;
-    fn dlclose(handle: *mut raw::c_void) -> raw::c_int;
-    fn dlsym(handle: *mut raw::c_void, symbol: *const raw::c_char) -> *mut raw::c_void;
-    fn dlerror() -> *mut raw::c_char;
-    fn dladdr(addr: *mut raw::c_void, info: *mut DlInfo) -> raw::c_int;
+    fn dlopen(
+        filename: *const core::ffi::c_char,
+        flags: core::ffi::c_int,
+    ) -> *mut core::ffi::c_void;
+    fn dlclose(handle: *mut core::ffi::c_void) -> core::ffi::c_int;
+    fn dlsym(
+        handle: *mut core::ffi::c_void,
+        symbol: *const core::ffi::c_char,
+    ) -> *mut core::ffi::c_void;
+    fn dlerror() -> *mut core::ffi::c_char;
+    fn dladdr(addr: *mut core::ffi::c_void, info: *mut DlInfo) -> core::ffi::c_int;
 }
 
 #[repr(C)]
 struct DlInfo {
-    dli_fname: *const raw::c_char,
-    dli_fbase: *mut raw::c_void,
-    dli_sname: *const raw::c_char,
-    dli_saddr: *mut raw::c_void,
+    dli_fname: *const core::ffi::c_char,
+    dli_fbase: *mut core::ffi::c_void,
+    dli_sname: *const core::ffi::c_char,
+    dli_saddr: *mut core::ffi::c_void,
 }

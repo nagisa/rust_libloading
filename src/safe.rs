@@ -5,11 +5,11 @@ use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
 use super::Error;
+use core::fmt;
+use core::marker;
+use core::ops;
+#[cfg(feature = "std")]
 use std::ffi::OsStr;
-use std::fmt;
-use std::marker;
-use std::ops;
-use std::os::raw;
 
 /// A loaded dynamic library.
 #[cfg_attr(libloading_docs, doc(cfg(any(unix, windows))))]
@@ -81,8 +81,20 @@ impl Library {
     ///     let _ = Library::new("libsomelib.so.1").unwrap();
     /// }
     /// ```
+    #[cfg(feature = "std")]
     pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
+    }
+
+    /// This function is equivalent to calling new, except that it accepts a rust utf-8 string
+    /// as the filename. It will either use or convert this string into the appropriate
+    /// representation that the target requires to load the library.
+    ///
+    /// Since this fn does a conversion this function is likely slower than using the `new` function.
+    ///
+    /// All other aspects such as safety are identical to the `new` function.
+    pub unsafe fn new_utf8(filename: impl AsRef<str>) -> Result<Library, Error> {
+        imp::Library::new_utf8(filename).map(From::from)
     }
 
     /// Get a pointer to a function or static variable by symbol name.
@@ -259,7 +271,7 @@ impl<'lib, T> Symbol<'lib, T> {
     /// Using this function relinquishes all the lifetime guarantees. It is up to the developer to
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
-    pub unsafe fn try_as_raw_ptr(self) -> Option<*mut raw::c_void> {
+    pub unsafe fn try_as_raw_ptr(self) -> Option<*mut core::ffi::c_void> {
         Some(
             unsafe {
                 // SAFE: the calling function has the same soundness invariants as this callee.

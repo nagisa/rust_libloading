@@ -1,11 +1,12 @@
-use std::ffi::{CStr, CString};
+use alloc::ffi::CString;
+use core::ffi::CStr;
 
 /// A `dlerror` error.
 pub struct DlDescription(pub(crate) CString);
 
-impl std::fmt::Debug for DlDescription {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.0, f)
+impl core::fmt::Debug for DlDescription {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.0, f)
     }
 }
 
@@ -16,11 +17,15 @@ impl From<&CStr> for DlDescription {
 }
 
 /// A Windows API error.
+#[cfg(not(feature = "std"))]
+pub struct WindowsError(pub(crate) i32);
+
+#[cfg(feature = "std")]
 pub struct WindowsError(pub(crate) std::io::Error);
 
-impl std::fmt::Debug for WindowsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.0, f)
+impl core::fmt::Debug for WindowsError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.0, f)
     }
 }
 
@@ -82,17 +87,28 @@ pub enum Error {
     /// Could not create a new CString.
     CreateCString {
         /// The source error.
-        source: std::ffi::NulError,
+        source: alloc::ffi::NulError,
     },
     /// Could not create a new CString from bytes with trailing null.
     CreateCStringWithTrailing {
         /// The source error.
-        source: std::ffi::FromBytesWithNulError,
+        source: core::ffi::FromBytesWithNulError,
     },
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for Error {
+    #[cfg(not(feature = "std"))]
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        use Error::*;
+        match *self {
+            CreateCString { ref source } => Some(source),
+            CreateCStringWithTrailing { ref source } => Some(source),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "std")]
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use Error::*;
         match *self {
             CreateCString { ref source } => Some(source),
@@ -106,8 +122,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         use Error::*;
         match *self {
             DlOpen { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),

@@ -33,6 +33,19 @@ jobs:
         # pwsh.exe drops quotes kekw. https://stackoverflow.com/a/59036879
         shell: bash
 
+  no-std-build-test:
+    runs-on: ubuntu-latest
+    # This will rebuild core and alloc, which will re-mangle symbols in alloc,
+    # which then will break the pre-compiled std. This will cause the program to fail to link.
+    # This test does not test anything in an actual no-std environment only that the library compiles on it.
+    # We test all no-std only functions together with the ordinary functions.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add nightly toolchain
+        run: rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+      - name: Compile without the standard library
+        run: cargo clean && cargo +nightly build -Zbuild-std=core,alloc --no-default-features
+
   windows-test:
     runs-on: windows-latest
     strategy:
