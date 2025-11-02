@@ -1,18 +1,10 @@
-// A hack for docs.rs to build documentation that has both windows and linux documentation in the
-// same rustdoc build visible.
-#[cfg(all(libloading_docs, not(unix)))]
-mod unix_imports {}
-#[cfg(any(not(libloading_docs), unix))]
-mod unix_imports {
-    pub(super) use std::os::unix::ffi::OsStrExt;
-}
-
 pub use self::consts::*;
-use self::unix_imports::*;
-use std::ffi::{CStr, OsStr};
-use std::os::raw;
-use std::{fmt, marker, mem, ptr};
-use util::{cstr_cow_from_bytes, ensure_compatible_types};
+use as_filename::AsFilename;
+use as_symbol_name::AsSymbolName;
+use core::ffi::CStr;
+use core::ptr::null;
+use core::{fmt, marker, mem, ptr};
+use util::ensure_compatible_types;
 
 mod consts;
 
@@ -88,7 +80,7 @@ where
 
 /// A platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library {
-    handle: *mut raw::c_void,
+    handle: *mut core::ffi::c_void,
 }
 
 unsafe impl Send for Library {}
@@ -131,7 +123,7 @@ impl Library {
     /// termination routines contained within the library is safe as well. These routines may be
     /// executed when the library is unloaded.
     #[inline]
-    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
+    pub unsafe fn new(filename: impl AsFilename) -> Result<Library, crate::Error> {
         Library::open(Some(filename), RTLD_LAZY | RTLD_LOCAL)
     }
 
@@ -156,7 +148,7 @@ impl Library {
         unsafe {
             // SAFE: this does not load any new shared library images, no danger in it executing
             // initialiser routines.
-            Library::open(None::<&OsStr>, RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
+            Library::open_char_ptr(null(), RTLD_LAZY | RTLD_LOCAL).expect("this should never fail")
         }
     }
 
@@ -177,25 +169,31 @@ impl Library {
     /// Additionally, the callers of this function must also ensure that execution of the
     /// termination routines contained within the library is safe as well. These routines may be
     /// executed when the library is unloaded.
-    pub unsafe fn open<P>(filename: Option<P>, flags: raw::c_int) -> Result<Library, crate::Error>
+    pub unsafe fn open<P>(
+        filename: Option<P>,
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error>
     where
-        P: AsRef<OsStr>,
+        P: AsFilename,
     {
-        let filename = match filename {
-            None => None,
-            Some(ref f) => Some(cstr_cow_from_bytes(f.as_ref().as_bytes())?),
+        let Some(filename) = filename else {
+            return Self::open_char_ptr(null(), flags);
         };
+
+        filename.posix_filename(|posix_filename| Library::open_char_ptr(posix_filename, flags))
+    }
+
+    /// private helper to call dlopen+dlerror once we de-tangled the string into a raw pointer to a 0 terminated utf-8 string.
+    /// caller must ensure that the string is actually 0 terminated.
+    unsafe fn open_char_ptr(
+        filename: *const core::ffi::c_char,
+        flags: core::ffi::c_int,
+    ) -> Result<Library, crate::Error> {
         with_dlerror(
             move || {
-                let result = dlopen(
-                    match filename {
-                        None => ptr::null(),
-                        Some(ref f) => f.as_ptr(),
-                    },
-                    flags,
-                );
+                let result = dlopen(filename, flags);
+
                 // ensure filename lives until dlopen completes
-                drop(filename);
                 if result.is_null() {
                     None
                 } else {
@@ -207,38 +205,43 @@ impl Library {
         .map_err(|e| e.unwrap_or(crate::Error::DlOpenUnknown))
     }
 
-    unsafe fn get_impl<T, F>(&self, symbol: &[u8], on_null: F) -> Result<Symbol<T>, crate::Error>
+    unsafe fn get_impl<T, F>(
+        &self,
+        symbol: impl AsSymbolName,
+        on_null: F,
+    ) -> Result<Symbol<T>, crate::Error>
     where
         F: FnOnce() -> Result<Symbol<T>, crate::Error>,
     {
-        ensure_compatible_types::<T, *mut raw::c_void>()?;
-        let symbol = cstr_cow_from_bytes(symbol)?;
+        ensure_compatible_types::<T, *mut core::ffi::c_void>()?;
         // `dlsym` may return nullptr in two cases: when a symbol genuinely points to a null
         // pointer or the symbol cannot be found. In order to detect this case a double dlerror
         // pattern must be used, which is, sadly, a little bit racy.
         //
         // We try to leave as little space as possible for this to occur, but we can’t exactly
         // fully prevent it.
-        let result = with_dlerror(
-            || {
-                dlerror();
-                let symbol = dlsym(self.handle, symbol.as_ptr());
-                if symbol.is_null() {
-                    None
-                } else {
-                    Some(Symbol {
-                        pointer: symbol,
-                        pd: marker::PhantomData,
-                    })
-                }
-            },
-            |desc| crate::Error::DlSym { desc: desc.into() },
-        );
-        match result {
-            Err(None) => on_null(),
-            Err(Some(e)) => Err(e),
-            Ok(x) => Ok(x),
-        }
+        symbol.symbol_name(|posix_symbol| {
+            let result = with_dlerror(
+                || {
+                    dlerror();
+                    let symbol = dlsym(self.handle, posix_symbol);
+                    if symbol.is_null() {
+                        None
+                    } else {
+                        Some(Symbol {
+                            pointer: symbol,
+                            pd: marker::PhantomData,
+                        })
+                    }
+                },
+                |desc| crate::Error::DlSym { desc: desc.into() },
+            );
+            match result {
+                Err(None) => on_null(),
+                Err(Some(e)) => Err(e),
+                Ok(x) => Ok(x),
+            }
+        })
     }
 
     /// Get a pointer to a function or static variable by symbol name.
@@ -265,7 +268,7 @@ impl Library {
     /// pointer without it being an error. If loading a null pointer is something you care about,
     /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+    pub unsafe fn get<T>(&self, symbol: impl AsSymbolName) -> Result<Symbol<T>, crate::Error> {
         extern crate cfg_if;
         cfg_if::cfg_if! {
             // These targets are known to have MT-safe `dlerror`.
@@ -309,7 +312,10 @@ impl Library {
     /// The implementation of thread-local variables is extremely platform specific and uses of such
     /// variables that work on e.g. Linux may have unintended behaviour on other targets.
     #[inline(always)]
-    pub unsafe fn get_singlethreaded<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+    pub unsafe fn get_singlethreaded<T>(
+        &self,
+        symbol: impl AsSymbolName,
+    ) -> Result<Symbol<T>, crate::Error> {
         self.get_impl(symbol, || {
             Ok(Symbol {
                 pointer: ptr::null_mut(),
@@ -322,7 +328,7 @@ impl Library {
     ///
     /// The handle returned by this function shall be usable with APIs which accept handles
     /// as returned by `dlopen`.
-    pub fn into_raw(self) -> *mut raw::c_void {
+    pub fn into_raw(self) -> *mut core::ffi::c_void {
         let handle = self.handle;
         mem::forget(self);
         handle
@@ -335,7 +341,7 @@ impl Library {
     /// The pointer shall be a result of a successful call of the `dlopen`-family of functions or a
     /// pointer previously returned by `Library::into_raw` call. It must be valid to call `dlclose`
     /// with this pointer as an argument.
-    pub unsafe fn from_raw(handle: *mut raw::c_void) -> Library {
+    pub unsafe fn from_raw(handle: *mut core::ffi::c_void) -> Library {
         Library { handle }
     }
 
@@ -364,7 +370,7 @@ impl Library {
         // While the library is not free'd yet in case of an error, there is no reason to try
         // dropping it again, because all that will do is try calling `dlclose` again. only
         // this time it would ignore the return result, which we already seen failing…
-        std::mem::forget(self);
+        mem::forget(self);
         result
     }
 }
@@ -379,7 +385,7 @@ impl Drop for Library {
 
 impl fmt::Debug for Library {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("Library@{:p}", self.handle))
+        f.write_fmt(format_args!("Library@{:p}", self.handle))
     }
 }
 
@@ -388,19 +394,19 @@ impl fmt::Debug for Library {
 /// A major difference compared to the cross-platform `Symbol` is that this does not ensure that the
 /// `Symbol` does not outlive the `Library` it comes from.
 pub struct Symbol<T> {
-    pointer: *mut raw::c_void,
+    pointer: *mut core::ffi::c_void,
     pd: marker::PhantomData<T>,
 }
 
 impl<T> Symbol<T> {
     /// Convert the loaded `Symbol` into a raw pointer.
-    pub fn into_raw(self) -> *mut raw::c_void {
+    pub fn into_raw(self) -> *mut core::ffi::c_void {
         self.pointer
     }
 
     /// Convert the loaded `Symbol` into a raw pointer.
     /// For unix this does the same as into_raw.
-    pub fn as_raw_ptr(self) -> *mut raw::c_void {
+    pub fn as_raw_ptr(self) -> *mut core::ffi::c_void {
         self.pointer
     }
 }
@@ -428,7 +434,7 @@ impl<T> Clone for Symbol<T> {
     }
 }
 
-impl<T> ::std::ops::Deref for Symbol<T> {
+impl<T> core::ops::Deref for Symbol<T> {
     type Target = T;
     fn deref(&self) -> &T {
         unsafe {
@@ -445,13 +451,13 @@ impl<T> fmt::Debug for Symbol<T> {
             if dladdr(self.pointer, info.as_mut_ptr()) != 0 {
                 let info = info.assume_init();
                 if info.dli_sname.is_null() {
-                    f.write_str(&format!(
+                    f.write_fmt(format_args!(
                         "Symbol@{:p} from {:?}",
                         self.pointer,
                         CStr::from_ptr(info.dli_fname)
                     ))
                 } else {
-                    f.write_str(&format!(
+                    f.write_fmt(format_args!(
                         "Symbol {:?}@{:p} from {:?}",
                         CStr::from_ptr(info.dli_sname),
                         self.pointer,
@@ -459,7 +465,7 @@ impl<T> fmt::Debug for Symbol<T> {
                     ))
                 }
             } else {
-                f.write_str(&format!("Symbol@{:p}", self.pointer))
+                f.write_fmt(format_args!("Symbol@{:p}", self.pointer))
             }
         }
     }
@@ -469,17 +475,23 @@ impl<T> fmt::Debug for Symbol<T> {
 #[cfg_attr(any(target_os = "linux", target_os = "android"), link(name = "dl"))]
 #[cfg_attr(any(target_os = "freebsd", target_os = "dragonfly"), link(name = "c"))]
 extern "C" {
-    fn dlopen(filename: *const raw::c_char, flags: raw::c_int) -> *mut raw::c_void;
-    fn dlclose(handle: *mut raw::c_void) -> raw::c_int;
-    fn dlsym(handle: *mut raw::c_void, symbol: *const raw::c_char) -> *mut raw::c_void;
-    fn dlerror() -> *mut raw::c_char;
-    fn dladdr(addr: *mut raw::c_void, info: *mut DlInfo) -> raw::c_int;
+    fn dlopen(
+        filename: *const core::ffi::c_char,
+        flags: core::ffi::c_int,
+    ) -> *mut core::ffi::c_void;
+    fn dlclose(handle: *mut core::ffi::c_void) -> core::ffi::c_int;
+    fn dlsym(
+        handle: *mut core::ffi::c_void,
+        symbol: *const core::ffi::c_char,
+    ) -> *mut core::ffi::c_void;
+    fn dlerror() -> *mut core::ffi::c_char;
+    fn dladdr(addr: *mut core::ffi::c_void, info: *mut DlInfo) -> core::ffi::c_int;
 }
 
 #[repr(C)]
 struct DlInfo {
-    dli_fname: *const raw::c_char,
-    dli_fbase: *mut raw::c_void,
-    dli_sname: *const raw::c_char,
-    dli_saddr: *mut raw::c_void,
+    dli_fname: *const core::ffi::c_char,
+    dli_fbase: *mut core::ffi::c_void,
+    dli_sname: *const core::ffi::c_char,
+    dli_saddr: *mut core::ffi::c_void,
 }

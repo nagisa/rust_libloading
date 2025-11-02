@@ -5,11 +5,11 @@ use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
 use super::Error;
-use std::ffi::OsStr;
-use std::fmt;
-use std::marker;
-use std::ops;
-use std::os::raw;
+use as_filename::AsFilename;
+use as_symbol_name::AsSymbolName;
+use core::fmt;
+use core::marker;
+use core::ops;
 
 /// A loaded dynamic library.
 #[cfg_attr(libloading_docs, doc(cfg(any(unix, windows))))]
@@ -81,7 +81,7 @@ impl Library {
     ///     let _ = Library::new("libsomelib.so.1").unwrap();
     /// }
     /// ```
-    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, Error> {
+    pub unsafe fn new(filename: impl AsFilename) -> Result<Library, Error> {
         imp::Library::new(filename).map(From::from)
     }
 
@@ -129,7 +129,7 @@ impl Library {
     /// #     Library::new("/path/to/awesome.module").unwrap()
     /// # };
     /// unsafe {
-    ///     let awesome_function: Symbol<unsafe extern fn(f64) -> f64> =
+    ///     let awesome_function: Symbol<unsafe extern "C" fn(f64) -> f64> =
     ///         lib.get(b"awesome_function\0").unwrap();
     ///     awesome_function(0.42);
     /// }
@@ -145,7 +145,7 @@ impl Library {
     ///     **awesome_variable = 42.0;
     /// };
     /// ```
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<'_, T>, Error> {
+    pub unsafe fn get<T>(&self, symbol: impl AsSymbolName) -> Result<Symbol<'_, T>, Error> {
         self.0.get(symbol).map(|from| Symbol::from_raw(from, self))
     }
 
@@ -259,7 +259,7 @@ impl<'lib, T> Symbol<'lib, T> {
     /// Using this function relinquishes all the lifetime guarantees. It is up to the developer to
     /// ensure the resulting `Symbol` is not used past the lifetime of the `Library` this symbol
     /// was loaded from.
-    pub unsafe fn try_as_raw_ptr(self) -> Option<*mut raw::c_void> {
+    pub unsafe fn try_as_raw_ptr(self) -> Option<*mut core::ffi::c_void> {
         Some(
             unsafe {
                 // SAFE: the calling function has the same soundness invariants as this callee.
