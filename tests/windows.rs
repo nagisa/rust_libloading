@@ -14,27 +14,13 @@ use std::os::raw::c_void;
 // The DLLs were kindly compiled by WindowsBunny (aka. @retep998).
 
 #[cfg(target_arch = "x86")]
-#[cfg(feature = "std")]
 fn load_ordinal_lib() -> Library {
     unsafe { Library::new("tests/nagisa32.dll").expect("nagisa32.dll") }
 }
 
 #[cfg(target_arch = "x86_64")]
-#[cfg(feature = "std")]
 fn load_ordinal_lib() -> Library {
     unsafe { Library::new("tests/nagisa64.dll").expect("nagisa64.dll") }
-}
-
-#[cfg(target_arch = "x86")]
-#[cfg(not(feature = "std"))]
-fn load_ordinal_lib() -> Library {
-    unsafe { Library::new_utf8("tests/nagisa32.dll").expect("nagisa32.dll") }
-}
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(not(feature = "std"))]
-fn load_ordinal_lib() -> Library {
-    unsafe { Library::new_utf8("tests/nagisa64.dll").expect("nagisa64.dll") }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -71,7 +57,6 @@ fn test_ordinal_missing_fails() {
 }
 
 #[test]
-#[cfg(feature = "std")]
 fn test_new_kernel23() {
     unsafe {
         Library::new("kernel23").err().unwrap();
@@ -79,23 +64,8 @@ fn test_new_kernel23() {
 }
 
 #[test]
-fn test_new_kernel23_utf8() {
-    unsafe {
-        Library::new_utf8("kernel23").err().unwrap();
-    }
-}
-
-#[test]
-#[cfg(feature = "std")]
 fn test_new_kernel32_no_ext() {
     unsafe {
         Library::new("kernel32").unwrap();
-    }
-}
-
-#[test]
-fn test_new_kernel32_no_ext_utf8() {
-    unsafe {
-        Library::new_utf8("kernel32").unwrap();
     }
 }

@@ -1,5 +1,8 @@
 use alloc::ffi::CString;
+use alloc::string::FromUtf16Error;
+use core::char::DecodeUtf16Error;
 use core::ffi::CStr;
+use core::str::Utf8Error;
 
 /// A `dlerror` error.
 pub struct DlDescription(pub(crate) CString);
@@ -17,15 +20,19 @@ impl From<&CStr> for DlDescription {
 }
 
 /// A Windows API error.
-#[cfg(not(feature = "std"))]
+#[derive(Copy, Clone)]
 pub struct WindowsError(pub(crate) i32);
-
-#[cfg(feature = "std")]
-pub struct WindowsError(pub(crate) std::io::Error);
 
 impl core::fmt::Debug for WindowsError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<WindowsError> for std::io::Error {
+    fn from(value: WindowsError) -> Self {
+        std::io::Error::from_raw_os_error(value.0)
     }
 }
 
@@ -89,6 +96,21 @@ pub enum Error {
         /// The source error.
         source: alloc::ffi::NulError,
     },
+    /// Could not parse some sequence of bytes as utf-8.
+    Utf8Error {
+        /// The source error.
+        source: Utf8Error,
+    },
+    /// Could not parse some sequence of bytes as utf-16.
+    DecodeUtf16Error {
+        ///The source error.
+        source: DecodeUtf16Error,
+    },
+    /// Could not parse some sequence of bytes as utf-16.
+    FromUtf16Error {
+        ///The source error.
+        source: FromUtf16Error,
+    },
     /// Could not create a new CString from bytes with trailing null.
     CreateCStringWithTrailing {
         /// The source error.
@@ -96,27 +118,30 @@ pub enum Error {
     },
 }
 
-impl core::error::Error for Error {
-    #[cfg(not(feature = "std"))]
-    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
-        use Error::*;
-        match *self {
-            CreateCString { ref source } => Some(source),
-            CreateCStringWithTrailing { ref source } => Some(source),
-            _ => None,
-        }
+impl From<Utf8Error> for Error {
+    fn from(value: Utf8Error) -> Self {
+        Self::Utf8Error { source: value }
     }
+}
 
-    #[cfg(feature = "std")]
+impl From<DecodeUtf16Error> for Error {
+    fn from(value: DecodeUtf16Error) -> Self {
+        Self::DecodeUtf16Error { source: value }
+    }
+}
+
+impl From<FromUtf16Error> for Error {
+    fn from(value: FromUtf16Error) -> Self {
+        Self::FromUtf16Error { source: value }
+    }
+}
+
+impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use Error::*;
         match *self {
             CreateCString { ref source } => Some(source),
             CreateCStringWithTrailing { ref source } => Some(source),
-            LoadLibraryExW { ref source } => Some(&source.0),
-            GetModuleHandleExW { ref source } => Some(&source.0),
-            GetProcAddress { ref source } => Some(&source.0),
-            FreeLibrary { ref source } => Some(&source.0),
             _ => None,
         }
     }
@@ -152,10 +177,17 @@ impl core::fmt::Display for Error {
                 write!(f, "FreeLibrary failed, but system did not report the error")
             }
             CreateCString { .. } => write!(f, "could not create a C string from bytes"),
+
             CreateCStringWithTrailing { .. } => write!(
                 f,
                 "could not create a C string from bytes with trailing null"
             ),
+            Utf8Error { .. } => write!(
+                f,
+                "could not create a C string from bytes with trailing null"
+            ),
+            DecodeUtf16Error { .. } => write!(f, "could not decode some bytes as utf16"),
+            FromUtf16Error { .. } => write!(f, "could not parse some utf16 bytes to a string"),
             IncompatibleSize => write!(f, "requested type cannot possibly work"),
         }
     }

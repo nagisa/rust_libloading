@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_toolchain: [nightly, stable, 1.71.0]
+        rust_toolchain: [nightly, stable, 1.81.0]
         os: [ubuntu-latest, windows-latest, macOS-latest]
     timeout-minutes: 20
     steps:
@@ -24,10 +24,12 @@ jobs:
       - run: rustup default ${{ matrix.rust_toolchain }}
       - run: rustup component add clippy
       - run: cargo update -p libc --precise 0.2.155
-        if: ${{ matrix.rust_toolchain == '1.71.0' }}
+        if: ${{ matrix.rust_toolchain == '1.81.0' }}
       - run: cargo clippy
       - run: cargo test -- --nocapture
       - run: cargo test --release -- --nocapture
+      - run: cargo test --no-default-features -- --nocapture
+      - run: cargo test --release --no-default-features -- --nocapture
       - run: cargo rustdoc -Zunstable-options --config 'build.rustdocflags=["--cfg", "libloading_docs", "-D", "rustdoc::broken_intra_doc_links"]'
         if: ${{ matrix.rust_toolchain == 'nightly' }}
         # pwsh.exe drops quotes kekw. https://stackoverflow.com/a/59036879

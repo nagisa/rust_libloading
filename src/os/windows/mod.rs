@@ -5,8 +5,6 @@ mod windows_imports {}
 #[cfg(any(not(libloading_docs), windows))]
 mod windows_imports {
     use super::{BOOL, DWORD, FARPROC, HANDLE, HMODULE};
-    #[cfg(feature = "std")]
-    pub(super) use std::os::windows::ffi::{OsStrExt, OsStringExt};
     windows_link::link!("kernel32.dll" "system" fn GetLastError() -> DWORD);
     windows_link::link!("kernel32.dll" "system" fn SetThreadErrorMode(new_mode: DWORD, old_mode: *mut DWORD) -> BOOL);
     windows_link::link!("kernel32.dll" "system" fn GetModuleHandleExW(flags: u32, module_name: *const u16, module: *mut HMODULE) -> BOOL);
@@ -17,11 +15,10 @@ mod windows_imports {
 }
 
 use self::windows_imports::*;
-use alloc::vec::Vec;
+use as_filename::AsFilename;
+use as_symbol_name::AsSymbolName;
 use core::{fmt, marker, mem, ptr};
-#[cfg(feature = "std")]
-use std::ffi::{OsStr, OsString};
-use util::{cstr_cow_from_bytes, ensure_compatible_types};
+use util::ensure_compatible_types;
 
 /// The platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library(HMODULE);
@@ -69,79 +66,8 @@ impl Library {
     /// termination routines contained within the library is safe as well. These routines may be
     /// executed when the library is unloaded.
     #[inline]
-    #[cfg(feature = "std")]
-    pub unsafe fn new<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
+    pub unsafe fn new(filename: impl AsFilename) -> Result<Library, crate::Error> {
         Library::load_with_flags(filename, 0)
-    }
-
-    /// Find and load a module.
-    ///
-    /// If the `filename` specifies a full path, the function only searches that path for the
-    /// module. Otherwise, if the `filename` specifies a relative path or a module name without a
-    /// path, the function uses a Windows-specific search strategy to find the module. For more
-    /// information, see the [Remarks on MSDN][msdn].
-    ///
-    /// If the `filename` specifies a library filename without a path and with the extension omitted,
-    /// the `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
-    /// trailing `.` to the `filename`.
-    ///
-    /// This function will check if the last element in the filename slice is 0. If it is then
-    /// the pointer of the slice is passed to windows. Otherwise, the function will copy
-    /// the slice and append a 0 element at the end. To prevent unnecessary copying it is recommended
-    /// to add the 0 element on the caller side.
-    ///
-    /// This is equivalent to <code>[Library::load_with_flags](filename, 0)</code>.
-    ///
-    /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks
-    ///
-    /// # Safety
-    ///
-    /// When a library is loaded, initialisation routines contained within the library are executed.
-    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
-    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
-    /// to be sound.
-    ///
-    /// Additionally, the callers of this function must also ensure that execution of the
-    /// termination routines contained within the library is safe as well. These routines may be
-    /// executed when the library is unloaded.
-    #[inline]
-    pub unsafe fn new_raw(filename: &[u16]) -> Result<Library, crate::Error> {
-        Library::load_with_flags_raw(filename, 0)
-    }
-
-    /// Find and load a module.
-    ///
-    /// If the `filename` specifies a full path, the function only searches that path for the
-    /// module. Otherwise, if the `filename` specifies a relative path or a module name without a
-    /// path, the function uses a Windows-specific search strategy to find the module. For more
-    /// information, see the [Remarks on MSDN][msdn].
-    ///
-    /// If the `filename` specifies a library filename without a path and with the extension omitted,
-    /// the `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
-    /// trailing `.` to the `filename`.
-    ///
-    /// This function will convert filename from its rust utf8 representation
-    /// to the utf16 w_char representation windows expects.
-    ///
-    /// This is equivalent to <code>[Library::load_with_flags](filename, 0)</code>.
-    ///
-    /// [msdn]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw#remarks
-    ///
-    /// # Safety
-    ///
-    /// When a library is loaded, initialisation routines contained within the library are executed.
-    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
-    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
-    /// to be sound.
-    ///
-    /// Additionally, the callers of this function must also ensure that execution of the
-    /// termination routines contained within the library is safe as well. These routines may be
-    /// executed when the library is unloaded.
-    #[inline]
-    pub unsafe fn new_utf8(filename: impl AsRef<str>) -> Result<Library, crate::Error> {
-        let filename = filename.as_ref();
-        let collector: Vec<u16> = filename.encode_utf16().collect();
-        Library::new_raw(&collector)
     }
 
     /// Get the `Library` representing the original program executable.
@@ -188,235 +114,68 @@ impl Library {
     /// This is equivalent to `GetModuleHandleExW(0, filename, _)`.
     ///
     /// [MSDN]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
-    #[cfg(feature = "std")]
-    pub fn open_already_loaded<P: AsRef<OsStr>>(filename: P) -> Result<Library, crate::Error> {
-        let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
+    pub fn open_already_loaded(filename: impl AsFilename) -> Result<Library, crate::Error> {
+        filename.windows_filename(|windows_filename| {
+            unsafe {
+                let mut handle: HMODULE = 0;
+                with_get_last_error(
+                    |source| crate::Error::GetModuleHandleExW { source },
+                    || {
+                        // Make sure no winapi calls as a result of drop happen inside this closure, because
+                        // otherwise that might change the return value of the GetLastError.
+                        let result = GetModuleHandleExW(0, windows_filename, &mut handle);
+                        if result == 0 {
+                            None
+                        } else {
+                            Some(Library(handle))
+                        }
+                    },
+                )
+                .map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
+            }
+        })
+    }
 
-        let ret = unsafe {
-            let mut handle: HMODULE = 0;
+    /// Find and load a module, additionally adjusting behaviour with flags.
+    ///
+    /// See [`Library::new`] for documentation on the handling of the `filename` argument. See the
+    /// [flag table on MSDN][flags] for information on applicable values for the `flags` argument.
+    ///
+    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
+    ///
+    /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
+    ///
+    /// # Safety
+    ///
+    /// When a library is loaded, initialisation routines contained within the library are executed.
+    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
+    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
+    /// to be sound.
+    ///
+    /// Additionally, the callers of this function must also ensure that execution of the
+    /// termination routines contained within the library is safe as well. These routines may be
+    /// executed when the library is unloaded.
+    pub unsafe fn load_with_flags(
+        filename: impl AsFilename,
+        flags: LOAD_LIBRARY_FLAGS,
+    ) -> Result<Library, crate::Error> {
+        filename.windows_filename(|windows_filename| {
+            let _guard = ErrorModeGuard::new();
             with_get_last_error(
-                |source| crate::Error::GetModuleHandleExW { source },
+                |source| crate::Error::LoadLibraryExW { source },
                 || {
                     // Make sure no winapi calls as a result of drop happen inside this closure, because
                     // otherwise that might change the return value of the GetLastError.
-                    let result = GetModuleHandleExW(0, wide_filename.as_ptr(), &mut handle);
-                    if result == 0 {
+                    let handle = LoadLibraryExW(windows_filename, 0, flags);
+                    if handle == 0 {
                         None
                     } else {
                         Some(Library(handle))
                     }
                 },
             )
-            .map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
-        };
-
-        drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
-                             // inside the closure by mistake. See comment inside the closure.
-        ret
-    }
-
-    /// Get a module that is already loaded by the program.
-    ///
-    /// This function returns a `Library` corresponding to a module with the given name that is
-    /// already mapped into the address space of the process. If the module isn't found, an error is
-    /// returned.
-    ///
-    /// If the `filename` does not include a full path and there are multiple different loaded
-    /// modules corresponding to the `filename`, it is impossible to predict which module handle
-    /// will be returned. For more information refer to [MSDN].
-    ///
-    /// If the `filename` specifies a library filename without a path and with the extension omitted,
-    /// the `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
-    /// trailing `.` to the `filename`.
-    ///
-    /// This function will convert filename from its rust utf8 representation
-    /// to the utf16 w_char representation windows expects.
-    ///
-    /// This is equivalent to `GetModuleHandleExW(0, filename, _)`.
-    ///
-    /// [MSDN]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
-    pub fn open_already_loaded_utf8(filename: impl AsRef<str>) -> Result<Library, crate::Error> {
-        let utf16: Vec<u16> = filename.as_ref().encode_utf16().chain(Some(0)).collect();
-        Library::open_already_loaded_raw(utf16.as_slice())
-    }
-
-    /// Get a module that is already loaded by the program.
-    ///
-    /// This function returns a `Library` corresponding to a module with the given name that is
-    /// already mapped into the address space of the process. If the module isn't found, an error is
-    /// returned.
-    ///
-    /// If the `filename` does not include a full path and there are multiple different loaded
-    /// modules corresponding to the `filename`, it is impossible to predict which module handle
-    /// will be returned. For more information refer to [MSDN].
-    ///
-    /// If the `filename` specifies a library filename without a path and with the extension omitted,
-    /// the `.dll` extension is implicitly added. This behaviour may be suppressed by appending a
-    /// trailing `.` to the `filename`.
-    ///
-    /// This function will check if the last element in the filename slice is 0. If it is then
-    /// the pointer of the slice is passed to windows. Otherwise, the function will copy
-    /// the slice and append a 0 element at the end. To prevent unnecessary copying it is recommended
-    /// to add the 0 element on the caller side.
-    ///
-    /// This is equivalent to `GetModuleHandleExW(0, filename, _)`.
-    ///
-    /// [MSDN]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw
-    pub fn open_already_loaded_raw(filename: &[u16]) -> Result<Library, crate::Error> {
-        let mut temp_filename_vec = Vec::new();
-        let mut raw_filename_ptr = filename.as_ptr();
-
-        //Poor mans 0 byte detection.
-        if filename.last() != Some(&0) {
-            temp_filename_vec.reserve_exact(filename.len() + 1);
-            temp_filename_vec.extend_from_slice(filename);
-            temp_filename_vec.push(0);
-            raw_filename_ptr = temp_filename_vec.as_ptr();
-        }
-
-        let ret = unsafe {
-            let mut handle: HMODULE = 0;
-            with_get_last_error(
-                |source| crate::Error::GetModuleHandleExW { source },
-                || {
-                    // Make sure no winapi calls as a result of drop happen inside this closure, because
-                    // otherwise that might change the return value of the GetLastError.
-                    let result = GetModuleHandleExW(0, raw_filename_ptr, &mut handle);
-                    if result == 0 {
-                        None
-                    } else {
-                        Some(Library(handle))
-                    }
-                },
-            )
-            .map_err(|e| e.unwrap_or(crate::Error::GetModuleHandleExWUnknown))
-        };
-
-        drop(temp_filename_vec); // Drop temp_filename_vec here to ensure it doesn’t get moved and dropped
-        ret
-    }
-
-    /// Find and load a module, additionally adjusting behaviour with flags.
-    ///
-    /// See [`Library::new`] for documentation on the handling of the `filename` argument. See the
-    /// [flag table on MSDN][flags] for information on applicable values for the `flags` argument.
-    ///
-    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
-    ///
-    /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
-    ///
-    /// # Safety
-    ///
-    /// When a library is loaded, initialisation routines contained within the library are executed.
-    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
-    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
-    /// to be sound.
-    ///
-    /// Additionally, the callers of this function must also ensure that execution of the
-    /// termination routines contained within the library is safe as well. These routines may be
-    /// executed when the library is unloaded.
-    #[cfg(feature = "std")]
-    pub unsafe fn load_with_flags<P: AsRef<OsStr>>(
-        filename: P,
-        flags: LOAD_LIBRARY_FLAGS,
-    ) -> Result<Library, crate::Error> {
-        let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
-        let _guard = ErrorModeGuard::new();
-        let ret = load_with_flags_raw(wide_filename.as_slice());
-        drop(wide_filename); // Drop wide_filename here to ensure it doesn’t get moved and dropped
-        ret
-    }
-
-    /// Find and load a module, additionally adjusting behaviour with flags.
-    ///
-    /// See [`Library::new`] for documentation on the handling of the `filename` argument. See the
-    /// [flag table on MSDN][flags] for information on applicable values for the `flags` argument.
-    ///
-    /// This function will convert filename from its rust utf8 representation
-    /// to the utf16 w_char representation windows expects.
-    ///
-    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
-    ///
-    /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
-    ///
-    /// # Safety
-    ///
-    /// When a library is loaded, initialisation routines contained within the library are executed.
-    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
-    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
-    /// to be sound.
-    ///
-    /// Additionally, the callers of this function must also ensure that execution of the
-    /// termination routines contained within the library is safe as well. These routines may be
-    /// executed when the library is unloaded.
-    pub unsafe fn load_with_flags_utf8(
-        filename: impl AsRef<str>,
-        flags: LOAD_LIBRARY_FLAGS,
-    ) -> Result<Library, crate::Error> {
-        let utf16: Vec<u16> = filename.as_ref().encode_utf16().chain(Some(0)).collect();
-        Library::load_with_flags_raw(utf16.as_slice(), flags)
-    }
-
-    /// Find and load a module, additionally adjusting behaviour with flags.
-    ///
-    /// See [`Library::new`] for documentation on the handling of the `filename` argument. See the
-    /// [flag table on MSDN][flags] for information on applicable values for the `flags` argument.
-    ///
-    /// This function will check if the last element in the filename slice is 0. If it is then
-    /// the pointer of the slice is passed to windows. Otherwise, the function will copy
-    /// the slice and append a 0 element at the end. To prevent unnecessary copying it is recommended
-    /// to add the 0 element on the caller side.
-    ///
-    /// Corresponds to `LoadLibraryExW(filename, reserved: NULL, flags)`.
-    ///
-    /// [flags]: https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw#parameters
-    ///
-    /// # Safety
-    ///
-    /// When a library is loaded, initialisation routines contained within the library are executed.
-    /// For the purposes of safety, the execution of these routines is conceptually the same calling an
-    /// unknown foreign function and may impose arbitrary requirements on the caller for the call
-    /// to be sound.
-    ///
-    /// Additionally, the callers of this function must also ensure that execution of the
-    /// termination routines contained within the library is safe as well. These routines may be
-    /// executed when the library is unloaded.
-    pub unsafe fn load_with_flags_raw(
-        filename: &[u16],
-        flags: LOAD_LIBRARY_FLAGS,
-    ) -> Result<Library, crate::Error> {
-        let mut temp_filename_vec = Vec::new();
-        let mut raw_filename_ptr = filename.as_ptr();
-
-        //Poor mans 0 byte detection.
-        if filename.last() != Some(&0) {
-            temp_filename_vec.reserve_exact(filename.len() + 1);
-            temp_filename_vec.extend_from_slice(filename);
-            temp_filename_vec.push(0);
-            raw_filename_ptr = temp_filename_vec.as_ptr();
-        }
-
-        let _guard = ErrorModeGuard::new();
-
-        let ret = with_get_last_error(
-            |source| crate::Error::LoadLibraryExW { source },
-            || {
-                // Make sure no winapi calls as a result of drop happen inside this closure, because
-                // otherwise that might change the return value of the GetLastError.
-                let handle = LoadLibraryExW(raw_filename_ptr, 0, flags);
-                if handle == 0 {
-                    None
-                } else {
-                    Some(Library(handle))
-                }
-            },
-        )
-        .map_err(|e| e.unwrap_or(crate::Error::LoadLibraryExWUnknown));
-
-        //Ensure this lives until the closure returns.
-        drop(temp_filename_vec);
-
-        ret
+            .map_err(|e| e.unwrap_or(crate::Error::LoadLibraryExWUnknown))
+        })
     }
 
     /// Attempts to pin the module represented by the current `Library` into memory.
@@ -468,24 +227,25 @@ impl Library {
     /// # Safety
     ///
     /// Users of this API must specify the correct type of the function or variable loaded.
-    pub unsafe fn get<T>(&self, symbol: &[u8]) -> Result<Symbol<T>, crate::Error> {
+    pub unsafe fn get<T>(&self, symbol: impl AsSymbolName) -> Result<Symbol<T>, crate::Error> {
         ensure_compatible_types::<T, FARPROC>()?;
-        let symbol = cstr_cow_from_bytes(symbol)?;
-        with_get_last_error(
-            |source| crate::Error::GetProcAddress { source },
-            || {
-                let symbol = GetProcAddress(self.0, symbol.as_ptr().cast());
-                if symbol.is_none() {
-                    None
-                } else {
-                    Some(Symbol {
-                        pointer: symbol,
-                        pd: marker::PhantomData,
-                    })
-                }
-            },
-        )
-        .map_err(|e| e.unwrap_or(crate::Error::GetProcAddressUnknown))
+        symbol.symbol_name(|windows_symbol| {
+            with_get_last_error(
+                |source| crate::Error::GetProcAddress { source },
+                || {
+                    let symbol = GetProcAddress(self.0, windows_symbol.cast());
+                    if symbol.is_none() {
+                        None
+                    } else {
+                        Some(Symbol {
+                            pointer: symbol,
+                            pd: marker::PhantomData,
+                        })
+                    }
+                },
+            )
+            .map_err(|e| e.unwrap_or(crate::Error::GetProcAddressUnknown))
+        })
     }
 
     /// Get a pointer to a function or static variable by ordinal number.
@@ -573,13 +333,13 @@ impl fmt::Debug for Library {
             let mut buf = mem::MaybeUninit::<[mem::MaybeUninit<u16>; 1024]>::uninit().assume_init();
             let len = GetModuleFileNameW(self.0, buf[..].as_mut_ptr().cast(), 1024) as usize;
             if len == 0 {
-                f.write_str(&format!("Library@{:#x}", self.0))
+                f.write_fmt(format_args!("Library@{:#x}", self.0))
             } else {
-                let string: std::os::OsString = std::os::OsString::from_wide(
+                let string: std::ffi::OsString = std::os::windows::ffi::OsStringExt::from_wide(
                     // FIXME: use Maybeuninit::slice_get_ref when stable
                     &*(&buf[..len] as *const [_] as *const [u16]),
                 );
-                f.write_str(&format!("Library@{:#x} from {:?}", self.0, string))
+                f.write_fmt(format_args!("Library@{:#x} from {:?}", self.0, string))
             }
         }
     }
@@ -682,27 +442,6 @@ impl Drop for ErrorModeGuard {
     }
 }
 
-#[cfg(feature = "std")]
-fn with_get_last_error<T, F>(
-    wrap: fn(crate::error::WindowsError) -> crate::Error,
-    closure: F,
-) -> Result<T, Option<crate::Error>>
-where
-    F: FnOnce() -> Option<T>,
-{
-    closure().ok_or_else(|| {
-        let error = unsafe { GetLastError() };
-        if error == 0 {
-            None
-        } else {
-            Some(wrap(crate::error::WindowsError(
-                std::io::Error::from_raw_os_error(error as i32),
-            )))
-        }
-    })
-}
-
-#[cfg(not(feature = "std"))]
 fn with_get_last_error<T, F>(
     wrap: fn(crate::error::WindowsError) -> crate::Error,
     closure: F,

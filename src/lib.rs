@@ -27,7 +27,7 @@
 //! fn call_dynamic() -> Result<u32, Box<dyn std::error::Error>> {
 //!     unsafe {
 //!         let lib = libloading::Library::new("/path/to/liblibrary.so")?;
-//!         let func: libloading::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func")?;
+//!         let func: libloading::Symbol<unsafe extern "C" fn() -> u32> = lib.get(b"my_func")?;
 //!         Ok(func())
 //!     }
 //! }
@@ -45,6 +45,12 @@
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
+
+mod as_filename;
+mod as_symbol_name;
+
+pub use as_filename::AsFilename;
+pub use as_symbol_name::AsSymbolName;
 
 pub mod changelog;
 mod error;
