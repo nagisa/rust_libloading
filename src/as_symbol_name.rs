@@ -6,6 +6,18 @@ use core::ffi::{c_char, CStr};
 mod private {
 
     pub trait AsSymbolNameSeal {
+
+        ///
+        /// This function is guaranteed to error or invoke the `FnOnce` parameter, 
+        /// and if called, return whatever the `FnOnce` returns.
+        ///
+        /// The pointer parameter to the `FnOnce` is guaranteed to point to a valid 0 terminated
+        /// c-string.
+        ///
+        /// The data the pointer points to is guaranteed to live until the `FnOnce` returns.
+        ///
+        /// The data can be assumed to be 0 terminated utf-8 on unix or 0 terminated wtf-8 on windows.
+        ///
         fn symbol_name<R>(
             &self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, crate::Error>,

@@ -8,12 +8,34 @@ use Error;
 mod private {
 
     pub trait AsFilenameSeal {
+        ///
+        /// This function is guaranteed to error or invoke the `FnOnce` parameter,
+        /// and if called, return whatever the `FnOnce` returns.
+        ///
+        /// The pointer parameter to the `FnOnce` is guaranteed to point to a valid "array" of
+        /// undefined size which is terminated by a single '0' u16.
+        ///
+        /// The data the pointer points to is guaranteed to live until the `FnOnce` returns.
+        ///
+        /// The data can be assumed to be formatted like the windows `LPCWSTR` if it is at all valid.
+        ///
         #[allow(unused)] //Posix doesnt use this
         fn windows_filename<R>(
             &self,
             function: impl FnOnce(*const u16) -> Result<R, crate::Error>,
         ) -> Result<R, crate::Error>;
 
+        ///
+        /// This function is guaranteed to error or invoke the `FnOnce` parameter,
+        /// and if called, return whatever the `FnOnce` returns.
+        ///
+        /// The pointer parameter to the `FnOnce` is guaranteed to point to a valid 0 terminated
+        /// c-string.
+        ///
+        /// The data the pointer points to is guaranteed to live until the `FnOnce` returns.
+        ///
+        /// The data can be assumed to be 0 terminated utf-8.
+        ///
         #[allow(unused)] //Windows doesnt use this
         fn posix_filename<R>(
             &self,
