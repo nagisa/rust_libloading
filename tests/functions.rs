@@ -5,8 +5,6 @@ extern crate libloading;
 
 use libloading::{Library, Symbol};
 use std::os::raw::c_void;
-use std::thread;
-use std::time::Duration;
 
 const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
 const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
