@@ -1,6 +1,5 @@
 use alloc::ffi::CString;
 use alloc::string::FromUtf16Error;
-use core::char::DecodeUtf16Error;
 use core::ffi::CStr;
 use core::str::Utf8Error;
 
@@ -91,42 +90,26 @@ pub enum Error {
     FreeLibraryUnknown,
     /// The requested type cannot possibly work.
     IncompatibleSize,
-    /// Could not create a new CString.
-    CreateCString {
-        /// The source error.
-        source: alloc::ffi::NulError,
-    },
     /// Could not parse some sequence of bytes as utf-8.
     Utf8Error {
         /// The source error.
         source: Utf8Error,
     },
     /// Could not parse some sequence of bytes as utf-16.
-    DecodeUtf16Error {
-        ///The source error.
-        source: DecodeUtf16Error,
-    },
-    /// Could not parse some sequence of bytes as utf-16.
     FromUtf16Error {
         ///The source error.
         source: FromUtf16Error,
     },
-    /// Could not create a new CString from bytes with trailing null.
-    CreateCStringWithTrailing {
-        /// The source error.
-        source: core::ffi::FromBytesWithNulError,
+    /// The data contained interior 0/null elements.
+    InteriorZeroElements {
+        /// The position of the interior element which was 0/null.
+        position: usize,
     },
 }
 
 impl From<Utf8Error> for Error {
     fn from(value: Utf8Error) -> Self {
         Self::Utf8Error { source: value }
-    }
-}
-
-impl From<DecodeUtf16Error> for Error {
-    fn from(value: DecodeUtf16Error) -> Self {
-        Self::DecodeUtf16Error { source: value }
     }
 }
 
@@ -140,8 +123,8 @@ impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use Error::*;
         match *self {
-            CreateCString { ref source } => Some(source),
-            CreateCStringWithTrailing { ref source } => Some(source),
+            FromUtf16Error { ref source } => Some(source),
+            Utf8Error { ref source } => Some(source),
             _ => None,
         }
     }
@@ -176,18 +159,9 @@ impl core::fmt::Display for Error {
             FreeLibraryUnknown => {
                 write!(f, "FreeLibrary failed, but system did not report the error")
             }
-            CreateCString { .. } => write!(f, "could not create a C string from bytes"),
-
-            CreateCStringWithTrailing { .. } => write!(
-                f,
-                "could not create a C string from bytes with trailing null"
-            ),
-            Utf8Error { .. } => write!(
-                f,
-                "could not create a C string from bytes with trailing null"
-            ),
-            DecodeUtf16Error { .. } => write!(f, "could not decode some bytes as utf16"),
+            Utf8Error { .. } => write!(f, "could not parse bytes as utf-8"),
             FromUtf16Error { .. } => write!(f, "could not parse some utf16 bytes to a string"),
+            InteriorZeroElements { .. } => write!(f, "interior zero element in parameter"),
             IncompatibleSize => write!(f, "requested type cannot possibly work"),
         }
     }

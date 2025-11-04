@@ -60,13 +60,9 @@ mod safe;
 mod util;
 
 pub use self::error::Error;
+
 #[cfg(any(unix, windows, libloading_docs))]
 pub use self::safe::{Library, Symbol};
-
-#[cfg(feature = "std")]
-use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
-#[cfg(feature = "std")]
-use std::ffi::{OsStr, OsString};
 
 /// Converts a library name to a filename generally appropriate for use on the system.
 ///
@@ -86,9 +82,12 @@ use std::ffi::{OsStr, OsString};
 /// };
 /// ```
 #[cfg(feature = "std")]
-pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
+pub fn library_filename<S: AsRef<std::ffi::OsStr>>(name: S) -> std::ffi::OsString {
+    use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
+
     let name = name.as_ref();
-    let mut string = OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
+    let mut string =
+        std::ffi::OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
     string.push(DLL_PREFIX);
     string.push(name);
     string.push(DLL_SUFFIX);

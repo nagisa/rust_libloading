@@ -1,9 +1,7 @@
+use crate::Error;
 use alloc::ffi::CString;
 use alloc::string::String;
-use alloc::vec::Vec;
-use core::ffi::{c_char, CStr};
-use util::cstr_cow_from_bytes;
-use Error;
+use core::ffi::CStr;
 
 mod private {
 
@@ -13,15 +11,14 @@ mod private {
         /// and if called, return whatever the `FnOnce` returns.
         ///
         /// The pointer parameter to the `FnOnce` is guaranteed to point to a valid "array" of
-        /// undefined size which is terminated by a single '0' u16.
+        /// undefined size which is terminated by a single '0' u16 and guaranteed to not contain
+        /// interior '0' u16 elements.
         ///
         /// The data the pointer points to is guaranteed to live until the `FnOnce` returns.
         ///
-        /// The data can be assumed to be formatted like the windows `LPCWSTR` if it is at all valid.
-        ///
-        #[allow(unused)] //Posix doesnt use this
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, crate::Error>,
         ) -> Result<R, crate::Error>;
 
@@ -30,217 +27,254 @@ mod private {
         /// and if called, return whatever the `FnOnce` returns.
         ///
         /// The pointer parameter to the `FnOnce` is guaranteed to point to a valid 0 terminated
-        /// c-string.
+        /// c-string. The c-string is guaranteed to not contain interior '0' bytes.
         ///
         /// The data the pointer points to is guaranteed to live until the `FnOnce` returns.
         ///
-        /// The data can be assumed to be 0 terminated utf-8.
-        ///
-        #[allow(unused)] //Windows doesnt use this
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, crate::Error>,
         ) -> Result<R, crate::Error>;
     }
 }
 
-/// This trait is implemented on all types where libloading can derrive a filename from.
+/// This trait is implemented on all types where libloading can derive a filename from.
 /// It is sealed and cannot be implemented by a user of libloading.
-///
-/// This trait is implemented for the following common types:
-/// - String &String &str
-/// - CString &CString &CStr
-/// - OsString &OsString &OsStr
-/// - PathBuf &PathBuf &Path
-/// - &[u8] assumes utf8 data!
-/// - &[u16] assumes utf16-ne data!
 ///
 pub trait AsFilename: private::AsFilenameSeal {}
 
 impl<T> AsFilename for T where T: private::AsFilenameSeal {}
 
 impl private::AsFilenameSeal for &str {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let mut utf16: Vec<u16> = self.encode_utf16().collect();
+        let mut utf16: alloc::vec::Vec<u16> = self.encode_utf16().collect();
+
+        if let Some(position) = crate::util::find_interior_element(&utf16, 0) {
+            return Err(Error::InteriorZeroElements { position });
+        }
+
         if utf16.last() != Some(&0) {
             utf16.push(0);
         };
+
         function(utf16.as_ptr())
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let cow = cstr_cow_from_bytes(self.as_bytes())?;
-        function(cow.as_ptr())
+        self.as_bytes().posix_filename(function)
     }
 }
 
 impl private::AsFilenameSeal for &String {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_str().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let cow = cstr_cow_from_bytes(self.as_bytes())?;
-        function(cow.as_ptr())
+        self.as_str().posix_filename(function)
     }
 }
 
 impl private::AsFilenameSeal for String {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_str().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let cow = cstr_cow_from_bytes(self.as_bytes())?;
-        function(cow.as_ptr())
+        let mut data = self.into_bytes();
+        if let Some(position) = crate::util::find_interior_element(&data, 0) {
+            return Err(Error::InteriorZeroElements { position });
+        }
+
+        if data.last() != Some(&0) {
+            data.push(0);
+        }
+
+        function(data.as_ptr().cast())
     }
 }
 
+/// The windows implementation requires that the &CStr points to a 0 terminated utf-8 string,
+/// which is valid for calling [`Cstr::to_str`].
+///
+/// The unix implementation has no requirements beyond those which &CStr already guarantees.
 impl private::AsFilenameSeal for &CStr {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        //We assume cstr is utf-8 here, if it's something bespoke like CESU-8 (thanks java) then yeah... no.
         let utf8 = self.to_str()?;
         utf8.windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         function(self.as_ptr())
     }
 }
 
 impl private::AsFilenameSeal for &CString {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_c_str().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_c_str().posix_filename(function)
     }
 }
 
 impl private::AsFilenameSeal for CString {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_c_str().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_c_str().posix_filename(function)
     }
 }
 
-/// This implementation assumes that a slice always contains utf-8 bytes.
-/// (which is likely the most common case if the slice originated in rust)
+/// For Windows the buffer must contain valid data to call [`core::str::from_utf8`].
+///
+/// For Unix there is no such requirement.
+///
+/// Both implementations further require no interior 0 bytes.
+///
 impl private::AsFilenameSeal for &[u8] {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         let utf8 = core::str::from_utf8(self)?;
         utf8.windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let utf8 = core::str::from_utf8(self)?;
-        utf8.posix_filename(function)
+        if let Some(position) = crate::util::find_interior_element(self, 0) {
+            return Err(Error::InteriorZeroElements { position });
+        }
+
+        if self.last() != Some(&0) {
+            let copy = crate::util::copy_and_push(self, 0);
+            return function(copy.as_ptr().cast());
+        }
+
+        function(self.as_ptr().cast())
     }
 }
 
 impl<const N: usize> private::AsFilenameSeal for [u8; N] {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_slice().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_slice().posix_filename(function)
     }
 }
 
 impl<const N: usize> private::AsFilenameSeal for &[u8; N] {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_slice().windows_filename(function)
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         self.as_slice().posix_filename(function)
     }
 }
 
-/// This implementation assumes that the slice contains utf-16 in native endian.
-/// Sidenote: For windows this is always utf-16-le because the last big endian Windows system was the xbox 360 that rust doesn't support.
-/// For linux this is highly likely to also be utf-16-le because big endian is only used in some old mips routers or some IBM hardware.
+/// For Unix the buffer must contain valid data to call [`String::from_utf16`].
+///
+/// For Windows there is no such requirement.
+///
+/// Both implementations require that the buffer contains no interior 0 elements/characters.
 impl private::AsFilenameSeal for &[u16] {
+    #[cfg(windows)]
     fn windows_filename<R>(
-        &self,
+        self,
         function: impl FnOnce(*const u16) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        //Check that we have valid utf-16
-        for c in core::char::decode_utf16(self.iter().copied()) {
-            let _ = c?;
+        if let Some(position) = crate::util::find_interior_element(self, 0) {
+            return Err(Error::InteriorZeroElements { position });
         }
 
         if self.last() != Some(&0) {
-            let mut copy = self.to_vec();
-            copy.push(0);
+            let copy = crate::util::copy_and_push(self, 0);
             return function(copy.as_ptr());
         }
 
         function(self.as_ptr())
     }
 
+    #[cfg(unix)]
     fn posix_filename<R>(
-        &self,
-        function: impl FnOnce(*const c_char) -> Result<R, Error>,
+        self,
+        function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
     ) -> Result<R, Error> {
         let utf8 = String::from_utf16(self)?;
         utf8.posix_filename(function)
@@ -250,127 +284,137 @@ impl private::AsFilenameSeal for &[u16] {
 #[cfg(feature = "std")]
 #[cfg(any(windows, unix))]
 mod std {
+    use crate::Error;
     use as_filename::private;
-    use core::ffi::c_char;
     use std::ffi::{OsStr, OsString};
-    use Error;
 
     impl private::AsFilenameSeal for &OsStr {
-        #[cfg(unix)]
-        fn windows_filename<R>(
-            &self,
-            _function: impl FnOnce(*const u16) -> Result<R, Error>,
-        ) -> Result<R, Error> {
-            panic!("windows_filename() not implemented for OsStr on posix platform");
-        }
-
         #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            let mut utf16: alloc::vec::Vec<u16> =
-                std::os::windows::ffi::OsStrExt::encode_wide(*self).collect();
-            if utf16.last() != Some(&0) {
-                utf16.push(0);
+            let mut wide: alloc::vec::Vec<u16> =
+                std::os::windows::ffi::OsStrExt::encode_wide(self).collect();
+
+            if let Some(position) = crate::util::find_interior_element(&wide, 0) {
+                return Err(Error::InteriorZeroElements { position });
+            }
+
+            if wide.last() != Some(&0) {
+                wide.push(0);
             };
-            function(utf16.as_ptr())
+
+            function(wide.as_ptr())
         }
 
         #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            let cow =
-                crate::util::cstr_cow_from_bytes(std::os::unix::ffi::OsStrExt::as_bytes(*self))?;
-            function(cow.as_ptr())
-        }
-
-        #[cfg(windows)]
-        fn posix_filename<R>(
-            &self,
-            _function: impl FnOnce(*const c_char) -> Result<R, Error>,
-        ) -> Result<R, Error> {
-            panic!("posix_filename() not implemented for OsStr on windows")
+            std::os::unix::ffi::OsStrExt::as_bytes(self).posix_filename(function)
         }
     }
 
     impl private::AsFilenameSeal for &OsString {
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().windows_filename(function)
         }
 
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().posix_filename(function)
         }
     }
 
     impl private::AsFilenameSeal for OsString {
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
+            // This is the best we can do.
+            // There is no into_wide for windows.
+            // The internal repr is wtf-8 and this is different
+            // from LCPWSTR that we need for the ffi calls.
             self.as_os_str().windows_filename(function)
         }
 
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            self.as_os_str().posix_filename(function)
+            let mut data = std::os::unix::ffi::OsStringExt::into_vec(self);
+            if let Some(position) = crate::util::find_interior_element(&data, 0) {
+                return Err(Error::InteriorZeroElements { position });
+            }
+
+            if data.last() != Some(&0) {
+                data.push(0);
+            }
+
+            function(data.as_ptr().cast())
         }
     }
 
     impl private::AsFilenameSeal for std::path::PathBuf {
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            self.as_os_str().windows_filename(function)
+            self.into_os_string().windows_filename(function)
         }
 
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            self.as_os_str().posix_filename(function)
+            self.into_os_string().posix_filename(function)
         }
     }
 
     impl private::AsFilenameSeal for &std::path::PathBuf {
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().windows_filename(function)
         }
 
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().posix_filename(function)
         }
     }
 
     impl private::AsFilenameSeal for &std::path::Path {
+        #[cfg(windows)]
         fn windows_filename<R>(
-            &self,
+            self,
             function: impl FnOnce(*const u16) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().windows_filename(function)
         }
 
+        #[cfg(unix)]
         fn posix_filename<R>(
-            &self,
-            function: impl FnOnce(*const c_char) -> Result<R, Error>,
+            self,
+            function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
             self.as_os_str().posix_filename(function)
         }
