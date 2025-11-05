@@ -5,8 +5,8 @@ use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;
 use super::Error;
-use as_filename::AsFilename;
-use as_symbol_name::AsSymbolName;
+use crate::as_filename::AsFilename;
+use crate::as_symbol_name::AsSymbolName;
 use core::fmt;
 use core::marker;
 use core::ops;

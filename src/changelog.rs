@@ -1,5 +1,39 @@
 //! The change log.
 
+/// Release 0.9.0 (2025-11-05)
+///
+/// ## Breaking changes
+///
+/// * MSRV has been increased to 1.88.0;
+/// * This release adds a `std` feature. Most functionality remains available with this feature
+///   disabled, but anything involving `OsStr`, `OsString`, `Path` or `PathBuf` is only available
+///   with `std` feature enabled. If you are depending on `libloading` with `no-default-features`
+///   set to true, you may see compilation errors. Running with `std` feature enabled is still
+///   the strongly recommended option. no-std functionality has been contributed in [#184];
+/// * As a result of the change above, functions that previously using `AsRef<OsStr>` to
+///   describe the library path now require an implementor of [`AsFilename`](crate::AsFilename)
+///   instead. `AsFilename` has been implemented for the most likely types used previously. Please
+///   file an issue if you rely on a type that no longer works.
+/// * The `Error` enum's variants changed in incompatible ways. Furthermore it has been changed to
+///   return the underlying dlerror via the `source` method (matching behaviour on Windows.)
+/// * On Windows providing filenames with interior null bytes to `Library::open` and related
+///   functions will now report an error instead of silently truncating the provided input. This is
+///   a bug fix.
+///
+/// [#184]: https://github.com/nagisa/rust_libloading/pull/184
+///
+/// ## Non-breaking changes
+///
+/// * Symbol lookups via `Library::get` and related functions can now use a wider variety of string
+///   types, including `&CStr`. This, among other things, means that `c"symbol"` literals can be
+///   used without incurring any additional null-byte checking overhead or reallocations that were
+///   necessary for `&[u8]` argument used previously to support `b"literals"`. `&[u8]` is still
+///   accepted. This new functionality has been contributed in [#174] and [#184].
+///
+/// [#174]: https://github.com/nagisa/rust_libloading/pull/174
+///
+pub mod r0_9_0 {}
+
 /// Release 0.8.9 (2025-09-17)
 ///
 /// ## Non-breaking changes
