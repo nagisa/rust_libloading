@@ -3,7 +3,7 @@ name = "libloading"
 # When bumping
 # * Don’t forget to add an entry to `src/changelog.rs`
 # * If bumping to an incompatible version, adjust the documentation in `src/lib.rs`
-version = "0.8.9"
+version = "0.9.0"
 authors = ["Simonas Kazlauskas <libloading@kazlauskas.me>"]
 license = "ISC"
 repository = "https://github.com/nagisa/rust_libloading/"
@@ -12,8 +12,8 @@ readme = "README.mkd"
 description = "Bindings around the platform's dynamic library loading primitives with greatly improved memory safety."
 keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
-rust-version = "1.81.0"
-edition = "2015"
+rust-version = "1.88.0"
+edition = "2021"
 
 [features]
 default = ["std"]

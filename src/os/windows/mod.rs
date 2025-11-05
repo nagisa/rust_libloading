@@ -19,7 +19,6 @@ use crate::as_filename::AsFilename;
 use crate::as_symbol_name::AsSymbolName;
 use crate::util::ensure_compatible_types;
 use core::{fmt, marker, mem, ptr};
-use util::ensure_compatible_types;
 
 /// The platform-specific counterpart of the cross-platform [`Library`](crate::Library).
 pub struct Library(HMODULE);
