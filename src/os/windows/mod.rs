@@ -15,8 +15,9 @@ mod windows_imports {
 }
 
 use self::windows_imports::*;
-use as_filename::AsFilename;
-use as_symbol_name::AsSymbolName;
+use crate::as_filename::AsFilename;
+use crate::as_symbol_name::AsSymbolName;
+use crate::util::ensure_compatible_types;
 use core::{fmt, marker, mem, ptr};
 use util::ensure_compatible_types;
 

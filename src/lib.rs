@@ -7,7 +7,7 @@
 //! contents, but little is done to hide the differences in behaviour between platforms.
 //! The API documentation strives to document such differences as much as possible.
 //!
-//! Platform-specific APIs are also available in the [`os`](crate::os) module. These APIs are more
+//! Platform-specific APIs are also available in the [`os`] module. These APIs are more
 //! flexible, but less safe.
 //!
 //! # Installation
@@ -82,6 +82,7 @@ pub use self::safe::{Library, Symbol};
 /// };
 /// ```
 #[cfg(feature = "std")]
+#[cfg_attr(libloading_docs, doc(cfg(feature = "std")))]
 pub fn library_filename<S: AsRef<std::ffi::OsStr>>(name: S) -> std::ffi::OsString {
     use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 

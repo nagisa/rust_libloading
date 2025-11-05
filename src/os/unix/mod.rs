@@ -1,10 +1,10 @@
 pub use self::consts::*;
-use as_filename::AsFilename;
-use as_symbol_name::AsSymbolName;
+use crate::as_filename::AsFilename;
+use crate::as_symbol_name::AsSymbolName;
+use crate::util::ensure_compatible_types;
 use core::ffi::CStr;
 use core::ptr::null;
 use core::{fmt, marker, mem, ptr};
-use util::ensure_compatible_types;
 
 mod consts;
 
@@ -179,7 +179,6 @@ impl Library {
         let Some(filename) = filename else {
             return Self::open_char_ptr(null(), flags);
         };
-
         filename.posix_filename(|posix_filename| Library::open_char_ptr(posix_filename, flags))
     }
 
@@ -200,7 +199,9 @@ impl Library {
                     Some(Library { handle: result })
                 }
             },
-            |desc| crate::Error::DlOpen { desc: desc.into() },
+            |desc| crate::Error::DlOpen {
+                source: desc.into(),
+            },
         )
         .map_err(|e| e.unwrap_or(crate::Error::DlOpenUnknown))
     }
@@ -234,7 +235,9 @@ impl Library {
                         })
                     }
                 },
-                |desc| crate::Error::DlSym { desc: desc.into() },
+                |desc| crate::Error::DlSym {
+                    source: desc.into(),
+                },
             );
             match result {
                 Err(None) => on_null(),
@@ -364,7 +367,9 @@ impl Library {
                     None
                 }
             },
-            |desc| crate::Error::DlClose { desc: desc.into() },
+            |desc| crate::Error::DlClose {
+                source: desc.into(),
+            },
         )
         .map_err(|e| e.unwrap_or(crate::Error::DlCloseUnknown));
         // While the library is not free'd yet in case of an error, there is no reason to try

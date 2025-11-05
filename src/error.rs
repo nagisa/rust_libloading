@@ -1,18 +1,24 @@
 use alloc::ffi::CString;
-use alloc::string::FromUtf16Error;
 use core::ffi::CStr;
-use core::str::Utf8Error;
 
 /// A `dlerror` error.
-pub struct DlDescription(pub(crate) CString);
+pub struct DlError(pub(crate) CString);
 
-impl core::fmt::Debug for DlDescription {
+impl core::error::Error for DlError {}
+
+impl core::fmt::Debug for DlError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.0, f)
     }
 }
 
-impl From<&CStr> for DlDescription {
+impl core::fmt::Display for DlError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.0.to_string_lossy())
+    }
+}
+
+impl From<&CStr> for DlError {
     fn from(value: &CStr) -> Self {
         Self(value.into())
     }
@@ -22,16 +28,23 @@ impl From<&CStr> for DlDescription {
 #[derive(Copy, Clone)]
 pub struct WindowsError(pub(crate) i32);
 
+impl core::error::Error for WindowsError { }
+
 impl core::fmt::Debug for WindowsError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         core::fmt::Debug::fmt(&self.0, f)
     }
 }
 
-#[cfg(feature = "std")]
-impl From<WindowsError> for std::io::Error {
-    fn from(value: WindowsError) -> Self {
-        std::io::Error::from_raw_os_error(value.0)
+impl core::fmt::Display for WindowsError {
+    #[cfg(feature = "std")]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let error = std::io::Error::from_raw_os_error(self.0);
+        core::fmt::Display::fmt(&error, f)
+    }
+    #[cfg(not(feature = "std"))]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_fmt(format_args!("OS error {}", self.0))
     }
 }
 
@@ -42,21 +55,21 @@ pub enum Error {
     /// The `dlopen` call failed.
     DlOpen {
         /// The source error.
-        desc: DlDescription,
+        source: DlError,
     },
     /// The `dlopen` call failed and system did not report an error.
     DlOpenUnknown,
     /// The `dlsym` call failed.
     DlSym {
         /// The source error.
-        desc: DlDescription,
+        source: DlError,
     },
     /// The `dlsym` call failed and system did not report an error.
     DlSymUnknown,
     /// The `dlclose` call failed.
     DlClose {
         /// The source error.
-        desc: DlDescription,
+        source: DlError,
     },
     /// The `dlclose` call failed and system did not report an error.
     DlCloseUnknown,
@@ -90,42 +103,28 @@ pub enum Error {
     FreeLibraryUnknown,
     /// The requested type cannot possibly work.
     IncompatibleSize,
-    /// Could not parse some sequence of bytes as utf-8.
-    Utf8Error {
-        /// The source error.
-        source: Utf8Error,
-    },
-    /// Could not parse some sequence of bytes as utf-16.
-    FromUtf16Error {
-        ///The source error.
-        source: FromUtf16Error,
-    },
-    /// The data contained interior 0/null elements.
-    InteriorZeroElements {
-        /// The position of the interior element which was 0/null.
-        position: usize,
-    },
-}
-
-impl From<Utf8Error> for Error {
-    fn from(value: Utf8Error) -> Self {
-        Self::Utf8Error { source: value }
-    }
-}
-
-impl From<FromUtf16Error> for Error {
-    fn from(value: FromUtf16Error) -> Self {
-        Self::FromUtf16Error { source: value }
-    }
+    /// Input symbol of filename contains interior 0/null elements.
+    InteriorZeroElements,
 }
 
 impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         use Error::*;
-        match *self {
-            FromUtf16Error { ref source } => Some(source),
-            Utf8Error { ref source } => Some(source),
-            _ => None,
+        match self {
+            LoadLibraryExW { source }
+            | GetModuleHandleExW { source }
+            | GetProcAddress { source }
+            | FreeLibrary { source } => Some(source),
+            DlOpen { source } | DlSym { source } | DlClose { source } => Some(source),
+            DlOpenUnknown
+            | DlSymUnknown
+            | DlCloseUnknown
+            | LoadLibraryExWUnknown
+            | GetModuleHandleExWUnknown
+            | GetProcAddressUnknown
+            | FreeLibraryUnknown
+            | IncompatibleSize
+            | InteriorZeroElements => None,
         }
     }
 }
@@ -134,11 +133,11 @@ impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         use Error::*;
         match *self {
-            DlOpen { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
+            DlOpen { .. } => write!(f, "dlopen failed"),
             DlOpenUnknown => write!(f, "dlopen failed, but system did not report the error"),
-            DlSym { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
+            DlSym { .. } => write!(f, "dlsym failed"),
             DlSymUnknown => write!(f, "dlsym failed, but system did not report the error"),
-            DlClose { ref desc } => write!(f, "{}", desc.0.to_string_lossy()),
+            DlClose { .. } => write!(f, "dlclose failed"),
             DlCloseUnknown => write!(f, "dlclose failed, but system did not report the error"),
             LoadLibraryExW { .. } => write!(f, "LoadLibraryExW failed"),
             LoadLibraryExWUnknown => write!(
@@ -159,9 +158,7 @@ impl core::fmt::Display for Error {
             FreeLibraryUnknown => {
                 write!(f, "FreeLibrary failed, but system did not report the error")
             }
-            Utf8Error { .. } => write!(f, "could not parse bytes as utf-8"),
-            FromUtf16Error { .. } => write!(f, "could not parse some utf16 bytes to a string"),
-            InteriorZeroElements { .. } => write!(f, "interior zero element in parameter"),
+            InteriorZeroElements => write!(f, "interior zero element in parameter"),
             IncompatibleSize => write!(f, "requested type cannot possibly work"),
         }
     }
