@@ -6,10 +6,12 @@ mod test {
 
     #[cfg(any(target_os = "windows", target_os = "cygwin"))]
     const EXPECTED: &str = "audioengine.dll";
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "netbsd", target_os = "openbsd", target_os = "freebsd"))]
     const EXPECTED: &str = "libaudioengine.so";
     #[cfg(target_os = "macos")]
     const EXPECTED: &str = "libaudioengine.dylib";
+
+
 
     #[test]
     fn test_library_filename() {
