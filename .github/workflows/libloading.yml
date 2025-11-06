@@ -69,7 +69,28 @@ jobs:
             cargo test --release -- --nocapture
             cargo test --no-default-features -- --nocapture
             cargo test --release --no-default-features -- --nocapture
-            
+
+  netbsd-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: test netbsd
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          memory: 1024M
+          operating_system: netbsd
+          version: '10.1'
+          run: |
+            uname -a
+            echo "SETUP RUST"
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+            echo "RUNNING TESTS"
+            cargo test --verbose --release
+            cargo test -- --nocapture
+            cargo test --release -- --nocapture
+            cargo test --no-default-features -- --nocapture
+            cargo test --release --no-default-features -- --nocapture
 
   windows-test:
     runs-on: windows-latest
