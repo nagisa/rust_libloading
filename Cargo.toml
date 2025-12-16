@@ -14,6 +14,7 @@ keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
 rust-version = "1.88.0"
 edition = "2021"
+include = ["Cargo.toml", "LICENSE", "README.mkd", "src/**/*.rs"]
 
 [features]
 default = ["std"]
