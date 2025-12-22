@@ -75,7 +75,7 @@ pub mod r0_8_3 {}
 /// ## (Potentially) breaking changes
 ///
 /// MSRV has been increased to 1.56.0. Since both rustc versions are ancient, this has been deemed
-/// to not be breaking enough to warrant a semver-breaking release of libloading. If you're stick
+/// to not be breaking enough to warrant a semver-breaking release of libloading. If you're stuck
 /// with a version of rustc older than 1.56.0, lock `libloading` dependency to `0.8.1`.
 ///
 /// ## Non-breaking changes
