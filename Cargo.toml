@@ -14,7 +14,8 @@ keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
 rust-version = "1.88.0"
 edition = "2021"
-include = ["Cargo.toml", "LICENSE", "README.mkd", "src/**/*.rs"]
+autotests = false
+include = ["Cargo.toml", "LICENSE", "README.mkd", "src/**/*.rs", "tests/**/*.rs", "tests/ordinals.def"]
 
 [features]
 default = ["std"]
@@ -43,3 +44,8 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(libloading_docs)',
     'cfg(target_os, values("cygwin"))',
 ] }
+
+[[test]]
+path = "tests/lib.rs"
+name = "integration-tests"
+harness = true

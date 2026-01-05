@@ -1,0 +1,9 @@
+LIBRARY   test_helpers
+EXPORTS
+   test_ordinals   @1 NONAME
+   test_identity_u32 @2
+   test_identity_struct @3
+   test_check_static_ptr @4
+   test_get_static_u32 @5
+   TEST_STATIC_U32 @6
+   TEST_STATIC_PTR @7

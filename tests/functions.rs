@@ -1,10 +1,10 @@
 use libloading::{Library, Symbol};
-use std::os::raw::c_void;
 
 const TARGET_DIR: Option<&'static str> = option_env!("CARGO_TARGET_DIR");
 const TARGET_TMPDIR: Option<&'static str> = option_env!("CARGO_TARGET_TMPDIR");
+const MANIFEST_DIR: &'static str = env!("CARGO_MANIFEST_DIR");
 
-fn lib_path() -> std::path::PathBuf {
+pub fn lib_path() -> std::path::PathBuf {
     [
         TARGET_TMPDIR.unwrap_or(TARGET_DIR.unwrap_or("target")),
         "libtest_helpers.module",
@@ -13,7 +13,7 @@ fn lib_path() -> std::path::PathBuf {
     .collect()
 }
 
-fn make_helpers() {
+pub fn make_helpers() {
     static ONCE: ::std::sync::Once = ::std::sync::Once::new();
     ONCE.call_once(|| {
         if std::env::var_os("PRECOMPILED_TEST_HELPER").is_some() {
@@ -30,6 +30,9 @@ fn make_helpers() {
             cmd.arg("--target").arg(target);
         } else {
             eprintln!("WARNING: $TARGET NOT SPECIFIED! BUILDING HELPER MODULE FOR NATIVE TARGET.");
+        }
+        if cfg!(target_env = "msvc") {
+            cmd.arg(format!("-Clink-arg=/DEF:{MANIFEST_DIR}/tests/ordinals.def"));
         }
         assert!(cmd
             .status()
@@ -194,7 +197,7 @@ fn test_try_into_ptr() {
     unsafe {
         let lib = Library::new(lib_path()).unwrap();
         let f: Symbol<unsafe extern "C" fn(u32) -> u32> = lib.get(b"test_identity_u32\0").unwrap();
-        let ptr: *mut c_void = f.try_as_raw_ptr().unwrap();
+        let ptr: *mut std::ffi::c_void = f.try_as_raw_ptr().unwrap();
         assert!(!ptr.is_null());
         let ptr_casted: extern "C" fn(u32) -> u32 = std::mem::transmute(ptr);
         assert_eq!(42, ptr_casted(42));

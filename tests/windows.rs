@@ -3,27 +3,15 @@ extern crate libloading;
 use libloading::os::windows::*;
 use std::ffi::CStr;
 use std::os::raw::c_void;
-// The ordinal DLL contains exactly one function (other than DllMain, that is) with ordinal number
-// 1. This function has the sugnature `fn() -> *const c_char` and returns a string "bunny\0" (in
-// reference to WindowsBunny).
-//
-// Both x86_64 and x86 versions of the .dll are functionally the same. Ideally we would compile the
-// dlls with well known ordinals from our own testing helpers library, but rustc does not allow
-// specifying a custom .def file (https://github.com/rust-lang/rust/issues/35089)
-//
-// The DLLs were kindly compiled by WindowsBunny (aka. @retep998).
-
-#[cfg(target_arch = "x86")]
-fn load_ordinal_lib() -> Library {
-    unsafe { Library::new("tests/nagisa32.dll").expect("nagisa32.dll") }
-}
-
-#[cfg(target_arch = "x86_64")]
-fn load_ordinal_lib() -> Library {
-    unsafe { Library::new("tests/nagisa64.dll").expect("nagisa64.dll") }
-}
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn load_ordinal_lib() -> Library {
+    let path = super::functions::lib_path();
+    super::functions::make_helpers();
+    unsafe { Library::new(path.display().to_string()).expect("Windows test dll not found") }
+}
+
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_env = "msvc"))]
 #[test]
 fn test_ordinal() {
     let lib = load_ordinal_lib();
@@ -33,7 +21,7 @@ fn test_ordinal() {
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_env = "msvc"))]
 #[test]
 fn test_try_into_ptr() {
     let lib = load_ordinal_lib();
@@ -44,12 +32,13 @@ fn test_try_into_ptr() {
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_env = "msvc"))]
 #[test]
 fn test_ordinal_missing_fails() {
     let lib = load_ordinal_lib();
     unsafe {
-        let r: Result<Symbol<unsafe fn() -> *const i8>, _> = lib.get_ordinal(2);
+        // there are a few other symbols in the test DLL
+        let r: Result<Symbol<unsafe fn() -> *const i8>, _> = lib.get_ordinal(8);
         r.err().unwrap();
         let r: Result<Symbol<unsafe fn() -> *const i8>, _> = lib.get_ordinal(!0);
         r.err().unwrap();
