@@ -48,6 +48,51 @@ jobs:
       - name: Compile without the standard library
         run: cargo clean && cargo +nightly build -Zbuild-std=core,alloc --no-default-features
 
+  freebsd-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: test freebsd
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          memory: 512M
+          operating_system: freebsd
+          version: '14.3'
+          run: |
+            uname -a
+            echo "SETUP RUST"
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+            echo "RUNNING TESTS"
+            cargo test --verbose --release
+            cargo test -- --nocapture
+            cargo test --release -- --nocapture
+            cargo test --no-default-features -- --nocapture
+            cargo test --release --no-default-features -- --nocapture
+
+# FIXME removing --test-threads=1 causes segfault. This also occurs on real hardware with netbsd.
+  netbsd-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: test netbsd
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          memory: 1024M
+          operating_system: netbsd
+          version: '10.1'
+          run: |
+            uname -a
+            echo "SETUP RUST"
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+            echo "RUNNING TESTS"
+            cargo test --verbose --release -- --test-threads=1
+            cargo test -- --nocapture --test-threads=1
+            cargo test --release -- --nocapture --test-threads=1
+            cargo test --no-default-features -- --nocapture --test-threads=1
+            cargo test --release --no-default-features -- --nocapture --test-threads=1
+
   windows-test:
     runs-on: windows-latest
     strategy:
