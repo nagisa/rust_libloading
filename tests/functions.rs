@@ -17,7 +17,7 @@ pub fn make_helpers() {
     static ONCE: ::std::sync::Once = ::std::sync::Once::new();
     ONCE.call_once(|| {
         if std::env::var_os("PRECOMPILED_TEST_HELPER").is_some() {
-            //I can't be asked to make rustc work in wine.
+            // I can't be asked to make rustc work in wine.
             //I can call it myself from my linux host and then just move the file here this allows me to skip this.
             eprintln!("WILL NOT COMPILE TEST HELPERS, PROGRAM WILL ASSUME THAT {} EXISTS AND WAS EXTERNALLY PRE COMPILED", lib_path().display());
             return;
