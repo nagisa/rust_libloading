@@ -12,7 +12,7 @@ readme = "README.mkd"
 description = "Bindings around the platform's dynamic library loading primitives with greatly improved memory safety."
 keywords = ["dlopen", "load", "shared", "dylib"]
 categories = ["api-bindings"]
-rust-version = "1.88.0"
+rust-version = "1.95"
 edition = "2021"
 autotests = false
 include = ["Cargo.toml", "LICENSE", "README.mkd", "src/**/*.rs", "tests/**/*.rs", "tests/ordinals.def"]
@@ -27,9 +27,6 @@ version = "0.2"
 [target.'cfg(windows)'.dev-dependencies.windows-sys]
 version = "0.61"
 features = ["Win32_Foundation"]
-
-[target.'cfg(unix)'.dependencies.cfg-if]
-version = "1"
 
 [dev-dependencies]
 libc = "0.2"

@@ -54,14 +54,15 @@ mod posix {
 
 #[cfg(any(not(libloading_docs), unix))]
 mod posix {
-    use cfg_if::cfg_if;
     use super::c_int;
-    cfg_if! {
-        if #[cfg(target_os = "haiku")] {
+    cfg_select! {
+        target_os = "haiku" => {
             pub(super) const RTLD_LAZY: c_int = 0;
-        } else if #[cfg(target_os = "aix")] {
+        }
+        target_os = "aix" => {
             pub(super) const RTLD_LAZY: c_int = 4;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "linux",
             target_os = "android",
             target_os = "emscripten",
@@ -88,19 +89,21 @@ mod posix {
             target_os = "nto",
             target_os = "hurd",
             target_os = "cygwin",
-        ))] {
+        ) => {
             pub(super) const RTLD_LAZY: c_int = 1;
-        } else {
+        }
+        _ => {
             compile_error!(
                 "Target has no known `RTLD_LAZY` value. Please submit an issue or PR adding it."
             );
         }
     }
 
-    cfg_if! {
-        if #[cfg(target_os = "haiku")] {
+    cfg_select! {
+        target_os = "haiku" => {
             pub(super) const RTLD_NOW: c_int = 1;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "linux",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
@@ -128,41 +131,47 @@ mod posix {
             target_os = "nto",
             target_os = "hurd",
             target_os = "cygwin",
-        ))] {
+        ) => {
             pub(super) const RTLD_NOW: c_int = 2;
-        } else if #[cfg(all(target_os = "android",target_pointer_width = "32"))] {
+        }
+        all(target_os = "android",target_pointer_width = "32") => {
             pub(super) const RTLD_NOW: c_int = 0;
-        } else {
+        }
+        _ => {
             compile_error!(
                 "Target has no known `RTLD_NOW` value. Please submit an issue or PR adding it."
             );
         }
     }
 
-    cfg_if! {
-        if #[cfg(any(
+    cfg_select! {
+        any(
             target_os = "haiku",
             all(target_os = "android",target_pointer_width = "32"),
-        ))] {
+        ) => {
             pub(super) const RTLD_GLOBAL: c_int = 2;
-        } else if #[cfg(target_os = "aix")] {
+        }
+        target_os = "aix" => {
             pub(super) const RTLD_GLOBAL: c_int = 0x10000;
-        } else if #[cfg(any(
+        }
+        any(
             target_env = "uclibc",
             all(target_os = "linux", target_arch = "mips"),
             all(target_os = "linux", target_arch = "mips64"),
             target_os = "cygwin",
-        ))] {
+        ) => {
             pub(super) const RTLD_GLOBAL: c_int = 4;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "macos",
             target_os = "ios",
             target_os = "tvos",
             target_os = "visionos",
             target_os = "watchos",
-        ))] {
+        ) => {
             pub(super) const RTLD_GLOBAL: c_int = 8;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "linux",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
@@ -181,32 +190,36 @@ mod posix {
             target_os = "redox",
             target_os = "nto",
             target_os = "hurd",
-        ))] {
+        ) => {
             pub(super) const RTLD_GLOBAL: c_int = 0x100;
-        } else {
+        }
+        _ => {
             compile_error!(
                 "Target has no known `RTLD_GLOBAL` value. Please submit an issue or PR adding it."
             );
         }
     }
 
-    cfg_if! {
-        if #[cfg(any(
+    cfg_select! {
+        any(
            target_os = "netbsd",
            target_os = "nto",
-        ))] {
+        ) => {
             pub(super) const RTLD_LOCAL: c_int = 0x200;
-        } else if #[cfg(target_os = "aix")] {
+        }
+        target_os = "aix" => {
             pub(super) const RTLD_LOCAL: c_int = 0x80000;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "macos",
             target_os = "ios",
             target_os = "tvos",
             target_os = "visionos",
             target_os = "watchos",
-        ))] {
+        ) => {
             pub(super) const RTLD_LOCAL: c_int = 4;
-        } else if #[cfg(any(
+        }
+        any(
             target_os = "linux",
             target_os = "android",
             target_os = "emscripten",
@@ -227,9 +240,10 @@ mod posix {
             target_os = "redox",
             target_os = "hurd",
             target_os = "cygwin",
-        ))] {
+        ) => {
             pub(super) const RTLD_LOCAL: c_int = 0;
-        } else {
+        }
+        _ => {
             compile_error!(
                 "Target has no known `RTLD_LOCAL` value. Please submit an issue or PR adding it."
             );
