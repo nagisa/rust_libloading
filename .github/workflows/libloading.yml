@@ -48,6 +48,16 @@ jobs:
       - name: Compile without the standard library
         run: cargo clean && cargo +nightly build -Zbuild-std=core,alloc --no-default-features
 
+  musl-rust-lld-link-test:
+    runs-on: ubuntu-latest
+    # This test checks if binaries using libloading can be linked using rust-lld linker for target environments that
+    # provide a unified libc (e.g. musl) without needing to provide additional library paths to the linker.
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup install stable --profile=minimal
+      - run: rustup target add x86_64-unknown-linux-musl
+      - run: RUSTFLAGS="-Clinker=rust-lld" cargo build --target=x86_64-unknown-linux-musl --example e1
+
   windows-test:
     runs-on: windows-latest
     strategy:

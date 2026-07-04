@@ -479,7 +479,14 @@ impl<T> fmt::Debug for Symbol<T> {
 }
 
 // Platform specific things
-#[cfg_attr(any(target_os = "linux", target_os = "android"), link(name = "dl"))]
+#[cfg_attr(
+    any(
+        all(target_os = "linux", not(target_env = "musl")),
+        target_os = "android"
+    ),
+    link(name = "dl")
+)]
+#[cfg_attr(all(target_os = "linux", target_env = "musl"), link(name = "c"))]
 #[cfg_attr(any(target_os = "freebsd", target_os = "dragonfly"), link(name = "c"))]
 extern "C" {
     fn dlopen(
