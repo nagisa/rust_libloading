@@ -33,7 +33,6 @@ version = "1"
 
 [dev-dependencies]
 libc = "0.2"
-static_assertions = "1.1"
 
 [package.metadata.docs.rs]
 all-features = true
