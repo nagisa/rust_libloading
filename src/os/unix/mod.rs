@@ -272,12 +272,9 @@ impl Library {
     /// consider using the [`Library::get_singlethreaded`] call.
     #[inline(always)]
     pub unsafe fn get<T>(&self, symbol: impl AsSymbolName) -> Result<Symbol<T>, crate::Error> {
-        #[cfg_attr(libloading_docs, allow(unused_extern_crates))]
-        #[cfg(libloading_docs)]
-        extern crate cfg_if;
-        cfg_if::cfg_if! {
+        cfg_select! {
             // These targets are known to have MT-safe `dlerror`.
-            if #[cfg(any(
+            any(
                 target_os = "linux",
                 target_os = "android",
                 target_os = "openbsd",
@@ -288,9 +285,10 @@ impl Library {
                 target_os = "redox",
                 target_os = "fuchsia",
                 target_os = "cygwin",
-            ))] {
+            ) => {
                 self.get_singlethreaded(symbol)
-            } else {
+            }
+            _ => {
                 self.get_impl(symbol, || Err(crate::Error::DlSymUnknown))
             }
         }
