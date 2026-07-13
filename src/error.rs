@@ -28,7 +28,7 @@ impl From<&CStr> for DlError {
 #[derive(Copy, Clone)]
 pub struct WindowsError(pub(crate) i32);
 
-impl core::error::Error for WindowsError { }
+impl core::error::Error for WindowsError {}
 
 impl core::fmt::Debug for WindowsError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
