@@ -28,7 +28,7 @@ version = "0.2"
 version = "0.61"
 features = ["Win32_Foundation"]
 
-[target.'cfg(unix)'.dependencies.cfg-if]
+[target.'cfg(any(unix, target_os = "motor"))'.dependencies.cfg-if]
 version = "1"
 
 [dev-dependencies]

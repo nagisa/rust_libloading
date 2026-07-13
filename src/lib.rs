@@ -55,13 +55,13 @@ pub use as_symbol_name::AsSymbolName;
 pub mod changelog;
 mod error;
 pub mod os;
-#[cfg(any(unix, windows, libloading_docs))]
+#[cfg(any(unix, windows, target_os = "motor", libloading_docs))]
 mod safe;
 mod util;
 
 pub use self::error::Error;
 
-#[cfg(any(unix, windows, libloading_docs))]
+#[cfg(any(unix, windows, target_os = "motor", libloading_docs))]
 pub use self::safe::{Library, Symbol};
 
 /// Converts a library name to a filename generally appropriate for use on the system.

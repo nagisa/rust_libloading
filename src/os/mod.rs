@@ -10,14 +10,14 @@
 //!
 //! ```ignore
 //! # extern crate libloading;
-//! #[cfg(unix)]
+//! #[cfg(any(unix, target_os = "motor"))]
 //! use libloading::os::unix::*;
 //! #[cfg(windows)]
 //! use libloading::os::windows::*;
 //! ```
 
 /// UNIX implementation of dynamic library loading.
-#[cfg(any(unix, libloading_docs))]
+#[cfg(any(unix, target_os = "motor", libloading_docs))]
 #[cfg_attr(libloading_docs, doc(cfg(unix)))]
 pub mod unix;
 
