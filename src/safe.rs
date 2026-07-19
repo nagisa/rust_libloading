@@ -1,6 +1,6 @@
 #[cfg(libloading_docs)]
 use super::os::unix as imp; // the implementation used here doesn't matter particularly much...
-#[cfg(all(not(libloading_docs), unix))]
+#[cfg(all(not(libloading_docs), any(unix, target_os = "motor")))]
 use super::os::unix as imp;
 #[cfg(all(not(libloading_docs), windows))]
 use super::os::windows as imp;

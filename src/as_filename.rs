@@ -9,7 +9,7 @@ pub(crate) trait Sealed {
         function: impl FnOnce(*const u16) -> Result<R, crate::Error>,
     ) -> Result<R, crate::Error>;
 
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "motor"))]
     #[doc(hidden)]
     fn posix_filename<R>(
         self,
@@ -39,7 +39,7 @@ impl Sealed for &str {
         function(utf16.as_ptr())
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "motor"))]
     fn posix_filename<R>(
         self,
         function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -63,7 +63,7 @@ impl Sealed for &String {
         self.as_str().windows_filename(function)
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "motor"))]
     fn posix_filename<R>(
         self,
         function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -82,7 +82,7 @@ impl Sealed for String {
         self.as_str().windows_filename(function)
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, target_os = "motor"))]
     fn posix_filename<R>(
         mut self,
         function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -120,12 +120,12 @@ mod std {
             function(utf16.as_ptr())
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            let bytes = std::os::unix::ffi::OsStrExt::as_bytes(self);
+            let bytes = self.as_encoded_bytes();
             if crate::util::check_null_bytes(bytes)? {
                 function(bytes.as_ptr().cast())
             } else {
@@ -145,7 +145,7 @@ mod std {
             self.as_os_str().windows_filename(function)
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -168,12 +168,12 @@ mod std {
             self.as_os_str().windows_filename(function)
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
         ) -> Result<R, Error> {
-            let mut bytes = std::os::unix::ffi::OsStringExt::into_vec(self);
+            let mut bytes = self.into_encoded_bytes();
             if crate::util::check_null_bytes(&bytes)? {
                 function(bytes.as_ptr().cast())
             } else {
@@ -193,7 +193,7 @@ mod std {
             self.into_os_string().windows_filename(function)
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -212,7 +212,7 @@ mod std {
             self.as_os_str().windows_filename(function)
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,
@@ -231,7 +231,7 @@ mod std {
             self.as_os_str().windows_filename(function)
         }
 
-        #[cfg(unix)]
+        #[cfg(any(unix, target_os = "motor"))]
         fn posix_filename<R>(
             self,
             function: impl FnOnce(*const core::ffi::c_char) -> Result<R, Error>,

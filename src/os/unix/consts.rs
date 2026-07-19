@@ -52,7 +52,7 @@ mod posix {
     pub(super) const RTLD_LOCAL: c_int = !0;
 }
 
-#[cfg(any(not(libloading_docs), unix))]
+#[cfg(any(not(libloading_docs), unix, target_os = "motor"))]
 mod posix {
     use cfg_if::cfg_if;
     use super::c_int;
@@ -62,7 +62,7 @@ mod posix {
         } else if #[cfg(target_os = "aix")] {
             pub(super) const RTLD_LAZY: c_int = 4;
         } else if #[cfg(any(
-            target_os = "linux",
+            target_os = "linux", target_os = "motor",
             target_os = "android",
             target_os = "emscripten",
 
@@ -101,7 +101,7 @@ mod posix {
         if #[cfg(target_os = "haiku")] {
             pub(super) const RTLD_NOW: c_int = 1;
         } else if #[cfg(any(
-            target_os = "linux",
+            target_os = "linux", target_os = "motor",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
 
@@ -149,8 +149,8 @@ mod posix {
             pub(super) const RTLD_GLOBAL: c_int = 0x10000;
         } else if #[cfg(any(
             target_env = "uclibc",
-            all(target_os = "linux", target_arch = "mips"),
-            all(target_os = "linux", target_arch = "mips64"),
+            all(target_os = "linux", target_os = "motor", target_arch = "mips"),
+            all(target_os = "linux", target_os = "motor", target_arch = "mips64"),
             target_os = "cygwin",
         ))] {
             pub(super) const RTLD_GLOBAL: c_int = 4;
@@ -163,7 +163,7 @@ mod posix {
         ))] {
             pub(super) const RTLD_GLOBAL: c_int = 8;
         } else if #[cfg(any(
-            target_os = "linux",
+            target_os = "linux", target_os = "motor",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
 
@@ -207,7 +207,7 @@ mod posix {
         ))] {
             pub(super) const RTLD_LOCAL: c_int = 4;
         } else if #[cfg(any(
-            target_os = "linux",
+            target_os = "linux", target_os = "motor",
             target_os = "android",
             target_os = "emscripten",
 
