@@ -54,8 +54,8 @@ mod posix {
 
 #[cfg(any(not(libloading_docs), unix))]
 mod posix {
-    use cfg_if::cfg_if;
     use super::c_int;
+    use cfg_if::cfg_if;
     cfg_if! {
         if #[cfg(target_os = "haiku")] {
             pub(super) const RTLD_LAZY: c_int = 0;
@@ -63,6 +63,7 @@ mod posix {
             pub(super) const RTLD_LAZY: c_int = 4;
         } else if #[cfg(any(
             target_os = "linux",
+            target_os = "motor",
             target_os = "android",
             target_os = "emscripten",
 
@@ -102,6 +103,7 @@ mod posix {
             pub(super) const RTLD_NOW: c_int = 1;
         } else if #[cfg(any(
             target_os = "linux",
+            target_os = "motor",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
 
@@ -164,6 +166,7 @@ mod posix {
             pub(super) const RTLD_GLOBAL: c_int = 8;
         } else if #[cfg(any(
             target_os = "linux",
+            target_os = "motor",
             all(target_os = "android", target_pointer_width = "64"),
             target_os = "emscripten",
 
@@ -208,6 +211,7 @@ mod posix {
             pub(super) const RTLD_LOCAL: c_int = 4;
         } else if #[cfg(any(
             target_os = "linux",
+            target_os = "motor",
             target_os = "android",
             target_os = "emscripten",
 
