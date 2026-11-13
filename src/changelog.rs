@@ -1,5 +1,14 @@
 //! The change log.
 
+/// Release 0.9.1 (2026-11-13)
+///
+/// ## Non-breaking changes
+///
+/// * Fixes for the QNX targets. [#201]
+///
+/// [#201]: https://github.com/nagisa/rust_libloading/pull/201
+pub mod r0_9_1 {}
+
 /// Release 0.9.0 (2025-11-05)
 ///
 /// ## Breaking changes
