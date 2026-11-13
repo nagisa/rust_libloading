@@ -10,6 +10,8 @@ mod test {
     const EXPECTED: &str = "libaudioengine.so";
     #[cfg(target_os = "macos")]
     const EXPECTED: &str = "libaudioengine.dylib";
+    #[cfg(target_os = "qnx")]
+    const EXPECTED: &str = "libaudioengine.so";
 
     #[test]
     fn test_library_filename() {
